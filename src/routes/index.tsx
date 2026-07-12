@@ -4,11 +4,13 @@ import {
   Activity,
   AlertTriangle,
   ChevronDown,
+  Layers,
   Loader2,
   Search,
   Settings,
   TrendingDown,
   TrendingUp,
+  X,
 } from "lucide-react";
 
 import { TradingChart } from "@/components/TradingChart";
