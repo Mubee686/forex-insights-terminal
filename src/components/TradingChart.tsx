@@ -29,12 +29,15 @@ const PALETTE = {
 };
 
 const PAD = { top: 16, right: 66, bottom: 26, left: 8 };
+const ZOOM_FACTOR = 1.4;
+const ZOOM_MIN = 20;
 
 export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoverRef = useRef<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState({ w: 800, h: 480 });
+  const [visibleCount, setVisibleCount] = useState<number | null>(null);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -46,6 +49,27 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Reset zoom when candles array length changes (pair/timeframe switch)
+  useEffect(() => {
+    setVisibleCount(null);
+  }, [candles.length]);
+
+  const effectiveCount = Math.min(
+    visibleCount ?? candles.length,
+    candles.length,
+  );
+
+  const handleZoomIn = () => {
+    setVisibleCount(Math.max(ZOOM_MIN, Math.round(effectiveCount / ZOOM_FACTOR)));
+  };
+
+  const handleZoomOut = () => {
+    setVisibleCount(Math.min(candles.length, Math.round(effectiveCount * ZOOM_FACTOR)));
+  };
+
+  const canZoomIn = effectiveCount > ZOOM_MIN;
+  const canZoomOut = effectiveCount < candles.length;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -65,9 +89,14 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
     const plotW = w - PAD.left - PAD.right;
     const plotH = h - PAD.top - PAD.bottom;
 
+    // Slice to visible window (most recent candles)
+    const count = Math.min(visibleCount ?? candles.length, candles.length);
+    const offset = candles.length - count;
+    const visibleCandles = candles.slice(offset);
+
     let hi = -Infinity;
     let lo = Infinity;
-    for (const c of candles) {
+    for (const c of visibleCandles) {
       if (c.high > hi) hi = c.high;
       if (c.low < lo) lo = c.low;
     }
@@ -76,7 +105,7 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
     lo -= range * 0.06;
     const span = hi - lo;
 
-    const cw = plotW / candles.length;
+    const cw = plotW / visibleCandles.length;
     const bodyW = Math.max(1.5, Math.min(cw * 0.62, 14));
 
     const xOf = (i: number) => PAD.left + i * cw + cw / 2;
@@ -102,17 +131,17 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
     }
 
     // vertical time labels
-    const step = Math.max(1, Math.floor(candles.length / 7));
+    const step = Math.max(1, Math.floor(visibleCandles.length / 7));
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    for (let i = 0; i < candles.length; i += step) {
+    for (let i = 0; i < visibleCandles.length; i += step) {
       const x = xOf(i);
       ctx.strokeStyle = PALETTE.grid;
       ctx.beginPath();
       ctx.moveTo(x, PAD.top);
       ctx.lineTo(x, PAD.top + plotH);
       ctx.stroke();
-      const d = new Date(candles[i].time * 1000);
+      const d = new Date(visibleCandles[i].time * 1000);
       const label =
         timeframeSeconds >= 86400
           ? `${d.getMonth() + 1}/${d.getDate()}`
@@ -124,9 +153,15 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
     const rightX = PAD.left + plotW;
 
     // --- box zones (behind candles) ---
-    const boxZones = zones.filter((z) => z.priceHigh != null && z.priceLow != null);
+    // Adjust zone indices relative to visible window
+    const boxZones = zones.filter((z) => {
+      if (z.priceHigh == null || z.priceLow == null) return false;
+      const adjEnd = z.endIndex - offset;
+      return adjEnd >= 0;
+    });
     for (const z of boxZones) {
-      const x1 = xOf(z.startIndex) - bodyW / 2;
+      const adjStart = Math.max(0, z.startIndex - offset);
+      const x1 = xOf(adjStart) - bodyW / 2;
       const yTop = yOf(z.priceHigh!);
       const yBot = yOf(z.priceLow!);
       const boxH = Math.max(2, yBot - yTop);
@@ -146,7 +181,6 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
       ctx.setLineDash(z.tool === "poi" ? [4, 3] : []);
       ctx.strokeRect(x1, yTop, rightX - x1, boxH);
       ctx.setLineDash([]);
-      // label chip
       ctx.fillStyle = line;
       ctx.textAlign = "left";
       ctx.textBaseline = "bottom";
@@ -156,8 +190,8 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
     }
 
     // --- candles ---
-    for (let i = 0; i < candles.length; i++) {
-      const c = candles[i];
+    for (let i = 0; i < visibleCandles.length; i++) {
+      const c = visibleCandles[i];
       const up = c.close >= c.open;
       const color = up ? PALETTE.bull : PALETTE.bear;
       const x = xOf(i);
@@ -183,9 +217,12 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
       labelSide: "left" | "right",
     ) => {
       if (z.price == null) return;
+      const adjStart = z.startIndex - offset;
+      const adjEnd = z.endIndex - offset;
+      if (adjEnd < 0) return;
       const y = yOf(z.price);
-      const x1 = xOf(z.startIndex);
-      const x2 = z.tool === "liquidity" ? rightX : xOf(z.endIndex);
+      const x1 = xOf(Math.max(0, adjStart));
+      const x2 = z.tool === "liquidity" ? rightX : xOf(Math.min(visibleCandles.length - 1, adjEnd));
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.3;
       ctx.setLineDash(dash);
@@ -219,7 +256,7 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
       .forEach((z) => drawLine(z, PALETTE.choch, [], "left"));
 
     // --- live price line ---
-    const last = candles[candles.length - 1];
+    const last = visibleCandles[visibleCandles.length - 1];
     const ly = yOf(last.close);
     ctx.strokeStyle = PALETTE.livePrice;
     ctx.lineWidth = 1;
@@ -241,7 +278,7 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
     const hv = hoverRef.current;
     if (hv && hv.x >= PAD.left && hv.x <= rightX) {
       const idx = Math.min(
-        candles.length - 1,
+        visibleCandles.length - 1,
         Math.max(0, Math.floor((hv.x - PAD.left) / cw)),
       );
       const cx = xOf(idx);
@@ -256,7 +293,7 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
       ctx.stroke();
       ctx.setLineDash([]);
 
-      const c = candles[idx];
+      const c = visibleCandles[idx];
       const parts = [
         `O ${formatPrice(c.open, digits)}`,
         `H ${formatPrice(c.high, digits)}`,
@@ -280,7 +317,7 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
         ctx.fillText(p, bx + 8, by + 6 + i * 15);
       });
     }
-  }, [candles, zones, digits, size, timeframeSeconds]);
+  }, [candles, zones, digits, size, timeframeSeconds, visibleCount]);
 
   useEffect(() => {
     draw();
@@ -301,6 +338,24 @@ export function TradingChart({ candles, zones, digits, timeframeSeconds }: Props
           draw();
         }}
       />
+      <div className="absolute bottom-8 right-[74px] flex flex-col gap-1">
+        <button
+          onClick={handleZoomIn}
+          disabled={!canZoomIn}
+          className="flex h-7 w-7 items-center justify-center rounded border border-slate-600 bg-slate-800/90 text-slate-300 text-base font-bold transition hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          disabled={!canZoomOut}
+          className="flex h-7 w-7 items-center justify-center rounded border border-slate-600 bg-slate-800/90 text-slate-300 text-base font-bold transition hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Zoom out"
+        >
+          −
+        </button>
+      </div>
     </div>
   );
 }
