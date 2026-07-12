@@ -261,12 +261,29 @@ function Terminal() {
           </div>
         </main>
 
-        {/* Tools panel */}
-        <aside className="flex shrink-0 flex-col border-t border-border bg-panel lg:w-72 lg:border-l lg:border-t-0">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold">SMC Analysis</h2>
-            <p className="text-[11px] text-muted-foreground">Toggle tools to plot detected zones</p>
-          </div>
+        {/* Tools panel — opened via the SMC Tools button */}
+        {toolsOpen && (
+          <>
+            <div
+              onClick={() => setToolsOpen(false)}
+              className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm"
+            />
+            <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-panel shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div>
+                  <h2 className="text-sm font-semibold">SMC Analysis</h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    Toggle tools to plot detected zones
+                  </p>
+                </div>
+                <button
+                  onClick={() => setToolsOpen(false)}
+                  aria-label="Close SMC tools"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
           <div className="scroll-thin flex-1 overflow-y-auto p-3">
             <div className="space-y-2">
               {TOOLS.map((t) => {
