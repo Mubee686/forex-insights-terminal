@@ -53,25 +53,15 @@ const ALL_TOOLS = new Set<ToolId>(TOOLS.map((t) => t.id));
 function Terminal() {
   const [symbol, setSymbol] = useState("EUR/USD");
   const [timeframeId, setTimeframeId] = useState("15m");
-  const [candles, setCandles] = useState<Candle[]>(() => generateCandles("EUR/USD", "15m"));
   const [enabled, setEnabled] = useState<Set<ToolId>>(() => new Set(ALL_TOOLS));
   const [query, setQuery] = useState("");
+  const [configOpen, setConfigOpen] = useState(false);
+
+  const { config, update, reset, hydrated } = useApiConfig();
+  const { candles, status, error } = useMarketData(config, hydrated, symbol, timeframeId);
 
   const pair = getPair(symbol);
   const tf = getTimeframe(timeframeId);
-
-  // regenerate when pair / timeframe changes
-  useEffect(() => {
-    setCandles(generateCandles(symbol, timeframeId));
-  }, [symbol, timeframeId]);
-
-  // live ticks
-  useEffect(() => {
-    const id = setInterval(() => {
-      setCandles((prev) => applyTick(prev, symbol, timeframeId));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [symbol, timeframeId]);
 
   const analysis = useMemo(() => analyze(candles), [candles]);
   const zones = useMemo(() => zonesForTools(analysis, enabled), [analysis, enabled]);
