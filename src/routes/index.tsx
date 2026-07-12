@@ -4,11 +4,13 @@ import {
   Activity,
   AlertTriangle,
   ChevronDown,
+  Layers,
   Loader2,
   Search,
   Settings,
   TrendingDown,
   TrendingUp,
+  X,
 } from "lucide-react";
 
 import { TradingChart } from "@/components/TradingChart";
@@ -29,13 +31,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aperture Terminal — Forex SMC Analysis Platform" },
+      { title: "MF SMC Trader — Forex SMC Analysis Platform" },
       {
         name: "description",
         content:
           "Professional forex trading terminal with live candlestick charts, multiple timeframes and Smart Money Concept tools: order blocks, FVGs, liquidity, BOS, CHoCH and POI.",
       },
-      { property: "og:title", content: "Aperture Terminal — Forex SMC Analysis" },
+      { property: "og:title", content: "MF SMC Trader — Forex SMC Analysis" },
       {
         property: "og:description",
         content:
@@ -56,6 +58,7 @@ function Terminal() {
   const [enabled, setEnabled] = useState<Set<ToolId>>(() => new Set(ALL_TOOLS));
   const [query, setQuery] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   const { config, update, reset, hydrated } = useApiConfig();
   const { candles, status, error } = useMarketData(config, hydrated, symbol, timeframeId);
@@ -96,7 +99,7 @@ function Terminal() {
             <Activity className="h-4 w-4" />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight">Aperture Terminal</div>
+            <div className="text-sm font-semibold tracking-tight">MF SMC Trader</div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
               Forex · SMC Analysis
             </div>
@@ -104,6 +107,23 @@ function Terminal() {
         </div>
         <div className="flex items-center gap-2">
           <FeedBadge status={status} source={config.dataSource} />
+          <button
+            onClick={() => setToolsOpen((v) => !v)}
+            aria-label="SMC analysis tools"
+            aria-pressed={toolsOpen}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+              toolsOpen
+                ? "border-primary/40 bg-primary/15 text-primary"
+                : "border-border bg-secondary/50 text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">SMC Tools</span>
+            <span className="tabular rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+              {enabled.size}
+            </span>
+          </button>
           <button
             onClick={() => setConfigOpen(true)}
             aria-label="API configuration"
@@ -241,12 +261,29 @@ function Terminal() {
           </div>
         </main>
 
-        {/* Tools panel */}
-        <aside className="flex shrink-0 flex-col border-t border-border bg-panel lg:w-72 lg:border-l lg:border-t-0">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold">SMC Analysis</h2>
-            <p className="text-[11px] text-muted-foreground">Toggle tools to plot detected zones</p>
-          </div>
+        {/* Tools panel — opened via the SMC Tools button */}
+        {toolsOpen && (
+          <>
+            <div
+              onClick={() => setToolsOpen(false)}
+              className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm"
+            />
+            <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-panel shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div>
+                  <h2 className="text-sm font-semibold">SMC Analysis</h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    Toggle tools to plot detected zones
+                  </p>
+                </div>
+                <button
+                  onClick={() => setToolsOpen(false)}
+                  aria-label="Close SMC tools"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
           <div className="scroll-thin flex-1 overflow-y-auto p-3">
             <div className="space-y-2">
               {TOOLS.map((t) => {
@@ -328,7 +365,9 @@ function Terminal() {
               </div>
             </div>
           </div>
-        </aside>
+            </aside>
+          </>
+        )}
       </div>
 
       {configOpen && (

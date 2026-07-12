@@ -77,14 +77,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Aperture Terminal — Forex SMC Analysis Platform" },
+      { title: "MF SMC Trader — Forex SMC Analysis Platform" },
       {
         name: "description",
         content:
           "Professional forex trading terminal with live candlestick charts, multiple timeframes and Smart Money Concept analysis tools.",
       },
-      { name: "author", content: "Aperture Terminal" },
-      { property: "og:title", content: "Aperture Terminal — Forex SMC Analysis" },
+      { name: "author", content: "MF SMC Trader" },
+      { property: "og:title", content: "MF SMC Trader — Forex SMC Analysis" },
       {
         property: "og:description",
         content:
