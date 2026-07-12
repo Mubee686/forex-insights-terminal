@@ -1,32 +1,28 @@
 import { useEffect, useRef, useState } from "react";
-import { applyTick, generateCandles, type Candle } from "@/lib/forex";
-import { isLiveReady, type ApiConfig } from "@/lib/config";
-import { fetchLiveCandles, setRateLimit } from "@/lib/live-data";
+import { applyTick, generateCandles, getTimeframe, type Candle } from "@/lib/forex";
+import { serverFetchCandles } from "@/lib/server-candles";
 
 export type FeedStatus = "simulated" | "connecting" | "live" | "error";
 
 export interface MarketData {
   candles: Candle[];
   status: FeedStatus;
-  error: string | null;
   isLoading: boolean;
 }
 
 // ─── Module-level caches ──────────────────────────────────────────────────────
 
-// Simulated candles are deterministic; cache indefinitely per key.
 const simCache = new Map<string, Candle[]>();
 
-// Live candles expire after 30 s so repeated pair switches feel instant.
 const liveCache = new Map<string, { candles: Candle[]; at: number }>();
-const LIVE_TTL = 30_000;
+const LIVE_TTL  = 30_000; // 30 s — consider stale after this
 
-function simKey(symbol: string, tfId: string) {
+function cacheKey(symbol: string, tfId: string) {
   return `${symbol}|${tfId}`;
 }
 
 function getCachedSim(symbol: string, tfId: string): Candle[] {
-  const key = simKey(symbol, tfId);
+  const key = cacheKey(symbol, tfId);
   const hit = simCache.get(key);
   if (hit) return hit;
   const fresh = generateCandles(symbol, tfId);
@@ -35,105 +31,86 @@ function getCachedSim(symbol: string, tfId: string): Candle[] {
 }
 
 function getCachedLive(symbol: string, tfId: string): Candle[] | null {
-  const hit = liveCache.get(simKey(symbol, tfId));
+  const hit = liveCache.get(cacheKey(symbol, tfId));
   if (!hit) return null;
   if (Date.now() - hit.at > LIVE_TTL) return null;
   return hit.candles;
 }
 
 function setCachedLive(symbol: string, tfId: string, candles: Candle[]) {
-  liveCache.set(simKey(symbol, tfId), { candles, at: Date.now() });
+  liveCache.set(cacheKey(symbol, tfId), { candles, at: Date.now() });
 }
 
 // ─── hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * Provides candle data based on config: deterministic simulated feed or a
- * rate-limited live provider feed. Live failures fall back to simulated.
- * Both simulated and live data are cached so pair/timeframe switches are
- * near-instant on repeat visits.
+ * Provides candle data for a given pair + timeframe.
+ *
+ * Live mode:   server-side function calls Twelve Data using TWELVE_DATA_API_KEY.
+ *              Falls back to simulated when no key is configured or on error.
+ * Simulated:   deterministic random-walk seeded by symbol + timeframe.
+ *
+ * Both paths are cached so pair/timeframe switches feel instant on re-visit.
  */
-export function useMarketData(
-  config: ApiConfig,
-  hydrated: boolean,
-  symbol: string,
-  timeframeId: string,
-): MarketData {
-  const [candles, setCandles] = useState<Candle[]>(() =>
-    getCachedSim(symbol, timeframeId),
-  );
-  const [status, setStatus] = useState<FeedStatus>("simulated");
-  const [error, setError] = useState<string | null>(null);
+export function useMarketData(symbol: string, timeframeId: string): MarketData {
+  const tf = getTimeframe(timeframeId);
+
+  const [candles,   setCandles]   = useState<Candle[]>(() => getCachedSim(symbol, timeframeId));
+  const [status,    setStatus]    = useState<FeedStatus>("simulated");
   const [isLoading, setIsLoading] = useState(false);
 
-  const configRef = useRef(config);
-  configRef.current = config;
-
-  const wantLive = hydrated && isLiveReady(config);
-
-  // ── Load / reload when instrument, timeframe or feed changes ──────────────
+  // ── Load / reload ──────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
-    if (!wantLive) {
-      // Simulated: serve from cache immediately (no loading state)
-      setStatus("simulated");
-      setError(null);
-      setIsLoading(false);
-      setCandles(getCachedSim(symbol, timeframeId));
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    // Live mode: serve stale cache immediately to avoid blank chart,
-    // then refresh in the background.
     const stale = getCachedLive(symbol, timeframeId);
+
     if (stale) {
+      // Serve warm cache instantly, then silently refresh in background
       setCandles(stale);
       setStatus("live");
       setIsLoading(false);
     } else {
-      // No cached data → show simulated while we fetch
+      // Serve sim immediately while we try to fetch live
       setCandles(getCachedSim(symbol, timeframeId));
       setStatus("connecting");
       setIsLoading(true);
     }
-    setError(null);
-    setRateLimit(configRef.current.rateLimit.maxPerMinute);
 
-    fetchLiveCandles(configRef.current, symbol, timeframeId)
+    serverFetchCandles({ data: { symbol, timeframeId, count: tf.count } })
       .then((res) => {
         if (cancelled) return;
-        setCachedLive(symbol, timeframeId, res);
-        setCandles(res);
-        setStatus("live");
+        if (res.source === "live" && res.candles) {
+          setCachedLive(symbol, timeframeId, res.candles);
+          setCandles(res.candles);
+          setStatus("live");
+        } else {
+          // No key or Twelve Data error — use simulated
+          setCandles(getCachedSim(symbol, timeframeId));
+          setStatus("simulated");
+        }
         setIsLoading(false);
       })
-      .catch((e: unknown) => {
+      .catch(() => {
         if (cancelled) return;
-        const msg = e instanceof Error ? e.message : String(e);
-        setError(msg);
-        setStatus("error");
+        setCandles(getCachedSim(symbol, timeframeId));
+        setStatus("simulated");
         setIsLoading(false);
-        // Fall back to simulated if nothing cached
-        if (!stale) setCandles(getCachedSim(symbol, timeframeId));
       });
 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wantLive, symbol, timeframeId, config.apiKey, config.baseUrl, config.provider]);
+  }, [symbol, timeframeId, tf.count]);
 
-  // ── Ongoing updates: simulated ticks or live polling ─────────────────────
+  // ── Ongoing updates ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!wantLive || status === "error" || status === "simulated") {
+    if (status === "simulated" || status === "connecting" || status === "error") {
+      // Tick simulated data every second
       const id = setInterval(() => {
         setCandles((prev) => {
           const next = applyTick(prev, symbol, timeframeId);
-          // Keep simulated cache warm with the latest ticked state
-          simCache.set(simKey(symbol, timeframeId), next);
+          simCache.set(cacheKey(symbol, timeframeId), next);
           return next;
         });
       }, 1000);
@@ -141,24 +118,22 @@ export function useMarketData(
     }
 
     if (status === "live") {
-      const maxPerMin = Math.max(1, configRef.current.rateLimit.maxPerMinute);
-      const pollMs = Math.max(15_000, Math.ceil(65_000 / maxPerMin));
+      // Poll live data every 30 s
       const id = setInterval(() => {
-        fetchLiveCandles(configRef.current, symbol, timeframeId)
+        serverFetchCandles({ data: { symbol, timeframeId, count: tf.count } })
           .then((res) => {
-            setCachedLive(symbol, timeframeId, res);
-            setCandles(res);
-            setError(null);
+            if (res.source === "live" && res.candles) {
+              setCachedLive(symbol, timeframeId, res.candles);
+              setCandles(res.candles);
+            }
           })
-          .catch((e: unknown) =>
-            setError(e instanceof Error ? e.message : String(e)),
-          );
-      }, pollMs);
+          .catch(() => undefined);
+      }, 30_000);
       return () => clearInterval(id);
     }
 
     return undefined;
-  }, [wantLive, status, symbol, timeframeId]);
+  }, [status, symbol, timeframeId, tf.count]);
 
-  return { candles, status, error, isLoading };
+  return { candles, status, isLoading };
 }
