@@ -365,7 +365,9 @@ function Terminal() {
               </div>
             </div>
           </div>
-        </aside>
+            </aside>
+          </>
+        )}
       </div>
 
       {configOpen && (
