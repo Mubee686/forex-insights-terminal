@@ -258,7 +258,6 @@ function Terminal() {
               digits={pair.digits}
               timeframeSeconds={tf.seconds}
               isLoading={isLoading}
-              chartKey={symbol + timeframeId}
             />
           </div>
         </main>

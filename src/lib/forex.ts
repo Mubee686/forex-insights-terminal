@@ -16,17 +16,17 @@ export interface ForexPair {
 }
 
 export const FOREX_PAIRS: ForexPair[] = [
-  { symbol: "EUR/USD", name: "Euro / US Dollar", base: 1.085, pip: 0.0001, digits: 5, vol: 1 },
-  { symbol: "GBP/USD", name: "Pound / US Dollar", base: 1.265, pip: 0.0001, digits: 5, vol: 1.2 },
-  { symbol: "USD/JPY", name: "US Dollar / Yen", base: 156.2, pip: 0.01, digits: 3, vol: 1.1 },
-  { symbol: "AUD/USD", name: "Aussie / US Dollar", base: 0.662, pip: 0.0001, digits: 5, vol: 1.15 },
-  { symbol: "USD/CAD", name: "US Dollar / Loonie", base: 1.372, pip: 0.0001, digits: 5, vol: 1.05 },
-  { symbol: "USD/CHF", name: "US Dollar / Franc", base: 0.895, pip: 0.0001, digits: 5, vol: 0.95 },
-  { symbol: "NZD/USD", name: "Kiwi / US Dollar", base: 0.608, pip: 0.0001, digits: 5, vol: 1.25 },
-  { symbol: "EUR/GBP", name: "Euro / Pound", base: 0.857, pip: 0.0001, digits: 5, vol: 0.85 },
-  { symbol: "EUR/JPY", name: "Euro / Yen", base: 169.5, pip: 0.01, digits: 3, vol: 1.3 },
-  { symbol: "GBP/JPY", name: "Pound / Yen", base: 197.8, pip: 0.01, digits: 3, vol: 1.6 },
-  { symbol: "XAU/USD", name: "Gold / US Dollar", base: 2350.0, pip: 0.1, digits: 2, vol: 2.2 },
+  { symbol: "EUR/USD", name: "Euro / US Dollar",       base: 1.085,  pip: 0.0001, digits: 5, vol: 1    },
+  { symbol: "GBP/USD", name: "Pound / US Dollar",      base: 1.265,  pip: 0.0001, digits: 5, vol: 1.2  },
+  { symbol: "USD/JPY", name: "US Dollar / Yen",         base: 156.2,  pip: 0.01,   digits: 3, vol: 1.1  },
+  { symbol: "AUD/USD", name: "Aussie / US Dollar",      base: 0.662,  pip: 0.0001, digits: 5, vol: 1.15 },
+  { symbol: "USD/CAD", name: "US Dollar / Loonie",      base: 1.372,  pip: 0.0001, digits: 5, vol: 1.05 },
+  { symbol: "USD/CHF", name: "US Dollar / Franc",       base: 0.895,  pip: 0.0001, digits: 5, vol: 0.95 },
+  { symbol: "NZD/USD", name: "Kiwi / US Dollar",        base: 0.608,  pip: 0.0001, digits: 5, vol: 1.25 },
+  { symbol: "EUR/GBP", name: "Euro / Pound",            base: 0.857,  pip: 0.0001, digits: 5, vol: 0.85 },
+  { symbol: "EUR/JPY", name: "Euro / Yen",              base: 169.5,  pip: 0.01,   digits: 3, vol: 1.3  },
+  { symbol: "GBP/JPY", name: "Pound / Yen",             base: 197.8,  pip: 0.01,   digits: 3, vol: 1.6  },
+  { symbol: "XAU/USD", name: "Gold / US Dollar",        base: 2350.0, pip: 0.1,    digits: 2, vol: 2.2  },
 ];
 
 export interface Timeframe {
@@ -38,12 +38,17 @@ export interface Timeframe {
 }
 
 export const TIMEFRAMES: Timeframe[] = [
-  { id: "1m",  label: "1M",  seconds: 60,    volMult: 0.35, count: 350 },
-  { id: "5m",  label: "5M",  seconds: 300,   volMult: 0.6,  count: 350 },
-  { id: "15m", label: "15M", seconds: 900,   volMult: 0.9,  count: 350 },
-  { id: "1h",  label: "1H",  seconds: 3600,  volMult: 1.4,  count: 300 },
-  { id: "4h",  label: "4H",  seconds: 14400, volMult: 2.4,  count: 250 },
-  { id: "1d",  label: "1D",  seconds: 86400, volMult: 4.5,  count: 200 },
+  { id: "1m",  label: "1m",  seconds: 60,      volMult: 0.25, count: 400 },
+  { id: "5m",  label: "5m",  seconds: 300,     volMult: 0.5,  count: 400 },
+  { id: "10m", label: "10m", seconds: 600,     volMult: 0.7,  count: 350 },
+  { id: "15m", label: "15m", seconds: 900,     volMult: 0.9,  count: 350 },
+  { id: "30m", label: "30m", seconds: 1800,    volMult: 1.1,  count: 300 },
+  { id: "1h",  label: "1H",  seconds: 3600,    volMult: 1.4,  count: 300 },
+  { id: "4h",  label: "4H",  seconds: 14400,   volMult: 2.4,  count: 250 },
+  { id: "12h", label: "12H", seconds: 43200,   volMult: 3.2,  count: 200 },
+  { id: "1d",  label: "1D",  seconds: 86400,   volMult: 4.5,  count: 200 },
+  { id: "1w",  label: "1W",  seconds: 604800,  volMult: 8.0,  count: 100 },
+  { id: "1M",  label: "1M",  seconds: 2592000, volMult: 14.0, count: 60  },
 ];
 
 function mulberry32(seed: number) {
@@ -70,7 +75,7 @@ export function getPair(symbol: string): ForexPair {
 }
 
 export function getTimeframe(id: string): Timeframe {
-  return TIMEFRAMES.find((t) => t.id === id) ?? TIMEFRAMES[2];
+  return TIMEFRAMES.find((t) => t.id === id) ?? TIMEFRAMES[3];
 }
 
 export function formatPrice(value: number, digits: number): string {
@@ -80,10 +85,6 @@ export function formatPrice(value: number, digits: number): string {
   });
 }
 
-/**
- * Deterministic candle generator — produces a realistic random walk with
- * trending regimes. Switching pairs / timeframes is always stable and fast.
- */
 export function generateCandles(symbol: string, timeframeId: string): Candle[] {
   const pair = getPair(symbol);
   const tf = getTimeframe(timeframeId);
@@ -135,10 +136,6 @@ function round(v: number, digits: number): number {
   return Math.round(v * f) / f;
 }
 
-/**
- * Simulate a live tick: mutate the last (forming) candle and roll a new one
- * when the timeframe interval elapses.
- */
 export function applyTick(candles: Candle[], symbol: string, timeframeId: string): Candle[] {
   if (candles.length === 0) return candles;
   const pair = getPair(symbol);
@@ -171,7 +168,6 @@ export function applyTick(candles: Candle[], symbol: string, timeframeId: string
   return out;
 }
 
-/** Stable pseudo daily change for the pair list snapshot. */
 export function snapshotChange(symbol: string): number {
   const r = mulberry32(hashString(symbol + "|snap"))();
   return (r - 0.5) * 2.4;
