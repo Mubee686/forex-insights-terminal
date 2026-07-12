@@ -330,6 +330,39 @@ function Terminal() {
           </div>
         </aside>
       </div>
+
+      {configOpen && (
+        <ApiConfigPanel
+          config={config}
+          update={update}
+          reset={reset}
+          onClose={() => setConfigOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+const FEED_META: Record<FeedStatus, { label: string; dot: string; pulse: boolean }> = {
+  live: { label: "Live", dot: "bg-bull", pulse: true },
+  simulated: { label: "Simulated", dot: "bg-primary", pulse: false },
+  connecting: { label: "Connecting", dot: "bg-primary", pulse: true },
+  error: { label: "Feed error", dot: "bg-bear", pulse: false },
+};
+
+function FeedBadge({ status, source }: { status: FeedStatus; source: string }) {
+  const meta = FEED_META[status];
+  return (
+    <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1.5">
+      {status === "connecting" ? (
+        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+      ) : (
+        <span className={cn("h-2 w-2 rounded-full", meta.dot, meta.pulse && "live-dot")} />
+      )}
+      <span className="text-xs font-medium text-muted-foreground">{meta.label}</span>
+      <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 sm:inline">
+        {source === "live" ? "LIVE" : "SIM"}
+      </span>
     </div>
   );
 }
