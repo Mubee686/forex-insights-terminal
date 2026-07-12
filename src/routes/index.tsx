@@ -99,7 +99,7 @@ function Terminal() {
             <Activity className="h-4 w-4" />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight">Aperture Terminal</div>
+            <div className="text-sm font-semibold tracking-tight">MF SMC Trader</div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
               Forex · SMC Analysis
             </div>
@@ -107,6 +107,23 @@ function Terminal() {
         </div>
         <div className="flex items-center gap-2">
           <FeedBadge status={status} source={config.dataSource} />
+          <button
+            onClick={() => setToolsOpen((v) => !v)}
+            aria-label="SMC analysis tools"
+            aria-pressed={toolsOpen}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+              toolsOpen
+                ? "border-primary/40 bg-primary/15 text-primary"
+                : "border-border bg-secondary/50 text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">SMC Tools</span>
+            <span className="tabular rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+              {enabled.size}
+            </span>
+          </button>
           <button
             onClick={() => setConfigOpen(true)}
             aria-label="API configuration"
