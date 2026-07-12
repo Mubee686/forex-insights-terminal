@@ -61,7 +61,7 @@ function Terminal() {
   const [toolsOpen, setToolsOpen] = useState(false);
 
   const { config, update, reset, hydrated } = useApiConfig();
-  const { candles, status, error } = useMarketData(config, hydrated, symbol, timeframeId);
+  const { candles, status, error, isLoading } = useMarketData(config, hydrated, symbol, timeframeId);
 
   const pair = getPair(symbol);
   const tf = getTimeframe(timeframeId);
@@ -257,6 +257,8 @@ function Terminal() {
               zones={zones}
               digits={pair.digits}
               timeframeSeconds={tf.seconds}
+              isLoading={isLoading}
+              chartKey={symbol + timeframeId}
             />
           </div>
         </main>

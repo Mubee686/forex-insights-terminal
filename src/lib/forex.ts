@@ -12,7 +12,7 @@ export interface ForexPair {
   base: number;
   pip: number;
   digits: number;
-  vol: number; // relative volatility
+  vol: number;
 }
 
 export const FOREX_PAIRS: ForexPair[] = [
@@ -38,12 +38,12 @@ export interface Timeframe {
 }
 
 export const TIMEFRAMES: Timeframe[] = [
-  { id: "1m", label: "1M", seconds: 60, volMult: 0.35, count: 140 },
-  { id: "5m", label: "5M", seconds: 300, volMult: 0.6, count: 140 },
-  { id: "15m", label: "15M", seconds: 900, volMult: 0.9, count: 150 },
-  { id: "1h", label: "1H", seconds: 3600, volMult: 1.4, count: 150 },
-  { id: "4h", label: "4H", seconds: 14400, volMult: 2.4, count: 140 },
-  { id: "1d", label: "1D", seconds: 86400, volMult: 4.5, count: 120 },
+  { id: "1m",  label: "1M",  seconds: 60,    volMult: 0.35, count: 350 },
+  { id: "5m",  label: "5M",  seconds: 300,   volMult: 0.6,  count: 350 },
+  { id: "15m", label: "15M", seconds: 900,   volMult: 0.9,  count: 350 },
+  { id: "1h",  label: "1H",  seconds: 3600,  volMult: 1.4,  count: 300 },
+  { id: "4h",  label: "4H",  seconds: 14400, volMult: 2.4,  count: 250 },
+  { id: "1d",  label: "1D",  seconds: 86400, volMult: 4.5,  count: 200 },
 ];
 
 function mulberry32(seed: number) {
@@ -81,8 +81,8 @@ export function formatPrice(value: number, digits: number): string {
 }
 
 /**
- * Deterministic candle generator so switching pairs / timeframes is stable.
- * Produces a realistic random walk with trending regimes.
+ * Deterministic candle generator — produces a realistic random walk with
+ * trending regimes. Switching pairs / timeframes is always stable and fast.
  */
 export function generateCandles(symbol: string, timeframeId: string): Candle[] {
   const pair = getPair(symbol);
@@ -99,7 +99,6 @@ export function generateCandles(symbol: string, timeframeId: string): Candle[] {
   let regime = 0;
 
   for (let i = 0; i < tf.count; i++) {
-    // occasionally flip the trend regime
     if (regime <= 0) {
       drift = (rand() - 0.5) * step * 0.9;
       regime = 8 + Math.floor(rand() * 22);
