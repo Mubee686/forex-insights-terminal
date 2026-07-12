@@ -1,18 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Activity, ChevronDown, Search, TrendingDown, TrendingUp } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Activity,
+  AlertTriangle,
+  ChevronDown,
+  Loader2,
+  Search,
+  Settings,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 
 import { TradingChart } from "@/components/TradingChart";
+import { ApiConfigPanel } from "@/components/ApiConfigPanel";
+import { useApiConfig } from "@/hooks/use-api-config";
+import { useMarketData, type FeedStatus } from "@/hooks/use-market-data";
 import {
   FOREX_PAIRS,
   TIMEFRAMES,
-  applyTick,
   formatPrice,
-  generateCandles,
   getPair,
   getTimeframe,
   snapshotChange,
-  type Candle,
 } from "@/lib/forex";
 import { TOOLS, analyze, zonesForTools, type ToolId } from "@/lib/smc";
 import { cn } from "@/lib/utils";
