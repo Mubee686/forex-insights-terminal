@@ -31,13 +31,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aperture Terminal — Forex SMC Analysis Platform" },
+      { title: "MF SMC Trader — Forex SMC Analysis Platform" },
       {
         name: "description",
         content:
           "Professional forex trading terminal with live candlestick charts, multiple timeframes and Smart Money Concept tools: order blocks, FVGs, liquidity, BOS, CHoCH and POI.",
       },
-      { property: "og:title", content: "Aperture Terminal — Forex SMC Analysis" },
+      { property: "og:title", content: "MF SMC Trader — Forex SMC Analysis" },
       {
         property: "og:description",
         content:
