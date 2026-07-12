@@ -102,11 +102,33 @@ function Terminal() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1">
-          <span className="h-2 w-2 rounded-full bg-bull live-dot" />
-          <span className="text-xs font-medium text-muted-foreground">Live feed</span>
+        <div className="flex items-center gap-2">
+          <FeedBadge status={status} source={config.dataSource} />
+          <button
+            onClick={() => setConfigOpen(true)}
+            aria-label="API configuration"
+            className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">API</span>
+          </button>
         </div>
       </header>
+
+      {status === "error" && (
+        <div className="flex items-center gap-2 border-b border-bear/40 bg-bear/10 px-4 py-2 text-xs text-bear">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">
+            Live feed error — showing simulated data. {error}
+          </span>
+          <button
+            onClick={() => setConfigOpen(true)}
+            className="shrink-0 rounded border border-bear/50 px-2 py-0.5 font-medium hover:bg-bear/20"
+          >
+            Fix
+          </button>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Pairs list */}
