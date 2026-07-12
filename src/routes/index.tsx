@@ -58,6 +58,7 @@ function Terminal() {
   const [enabled, setEnabled] = useState<Set<ToolId>>(() => new Set(ALL_TOOLS));
   const [query, setQuery] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   const { config, update, reset, hydrated } = useApiConfig();
   const { candles, status, error } = useMarketData(config, hydrated, symbol, timeframeId);
