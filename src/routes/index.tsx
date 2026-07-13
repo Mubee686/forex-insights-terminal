@@ -10,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Timer,
   Trash2,
   ArrowLeft,
   ArrowRight,
@@ -20,6 +21,7 @@ import {
 
 import { TradingChart } from "@/components/TradingChart";
 import { useMarketData, type FeedStatus } from "@/hooks/use-market-data";
+import { useCandleTimer } from "@/hooks/use-candle-timer";
 import { useTimeframeBar } from "@/hooks/use-timeframes";
 import { FOREX_PAIRS, formatPrice, getPair } from "@/lib/forex";
 import {
@@ -61,6 +63,7 @@ function Terminal() {
   const [toolsOpen, setToolsOpen] = useState(false);
 
   const bar = useTimeframeBar();
+  const { formattedTime, epoch } = useCandleTimer(timeframeId);
 
   // Timeframe-bar management UI state
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -72,7 +75,7 @@ function Terminal() {
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { candles, price, prevClose, status, error, isLoading, refresh } =
-    useMarketData(symbol, timeframeId);
+    useMarketData(symbol, timeframeId, epoch);
 
   const pair = getPair(symbol);
   const tf = getTimeframe(timeframeId);
@@ -283,6 +286,10 @@ function Terminal() {
               <span className="text-lg font-bold tracking-tight">{pair.symbol}</span>
               <span className="rounded bg-secondary/60 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                 {tf.label}
+              </span>
+              <span className="flex items-center gap-1 rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                <Timer className="h-2.5 w-2.5 shrink-0" />
+                {formattedTime}
               </span>
             </div>
 

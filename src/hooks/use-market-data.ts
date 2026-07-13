@@ -1,7 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+/**
+ * useMarketData — provides live candle data for a pair + timeframe.
+ *
+ * Data strategy (respects Twelve Data free-plan: 8 calls/min):
+ *  • Full candle fetch  — on symbol/TF change, manual refresh, or candle close
+ *                         (triggered via `candleCloseEpoch` from useCandleTimer)
+ *  • Price-only fetch   — every 15 s between full reloads; updates the live
+ *                         price and adjusts the last (forming) candle in-place
+ *
+ * Never falls back to synthetic data — surfaces real errors instead.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Candle } from "@/lib/forex";
 import { getPair } from "@/lib/forex";
-import { fetchCandles } from "@/lib/market.functions";
+import { fetchCandles, fetchPrice } from "@/lib/market.functions";
 
 export type FeedStatus = "connecting" | "live" | "error";
 
@@ -15,58 +26,81 @@ export interface MarketData {
   refresh: () => void;
 }
 
-// ─── Module-level cache (survives pair / timeframe switches) ─────────────────
+// ─── Module-level cache ───────────────────────────────────────────────────────
 
 interface CacheEntry {
-  candles: Candle[];
+  /** Base candles straight from the last full fetch. */
+  baseCandles: Candle[];
   price: number;
   prevClose: number | null;
   at: number;
 }
-const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 20_000; // treat entries older than this as stale
-const POLL_MS = 8_000; // live refresh cadence
 
-function key(symbol: string, tf: string) {
+const cache = new Map<string, CacheEntry>();
+const CACHE_TTL = 30_000;  // stale threshold for background refresh
+const PRICE_POLL_MS = 15_000; // lightweight price poll cadence
+
+function cacheKey(symbol: string, tf: string) {
   return `${symbol}|${tf}`;
 }
 
-/**
- * Provides candle data for a pair + timeframe from ONE live feed.
- * - Warm cache is served instantly, then refreshed in the background.
- * - Polls every few seconds so the current price stays in sync with the market.
- * - Never falls back to synthetic data; surfaces a real error instead.
- */
-export function useMarketData(symbol: string, timeframeId: string): MarketData {
-  const pair = getPair(symbol);
-  const yahoo = pair.yahoo;
+/** Apply the live price to the last (forming) candle without mutating the array. */
+function applyLivePrice(base: Candle[], price: number): Candle[] {
+  if (!base.length) return base;
+  const last = base[base.length - 1];
+  if (price === last.close) return base; // nothing changed
+  const updated: Candle = {
+    ...last,
+    close: price,
+    high: Math.max(last.high, price),
+    low: Math.min(last.low, price),
+  };
+  return [...base.slice(0, -1), updated];
+}
 
-  const cached = cache.get(key(symbol, timeframeId));
-  const [candles, setCandles] = useState<Candle[]>(cached?.candles ?? []);
-  const [price, setPrice] = useState<number | null>(cached?.price ?? null);
-  const [prevClose, setPrevClose] = useState<number | null>(cached?.prevClose ?? null);
-  const [status, setStatus] = useState<FeedStatus>(cached ? "live" : "connecting");
+export function useMarketData(
+  symbol: string,
+  timeframeId: string,
+  /** Increments each time a candle closes — drives automatic full reloads. */
+  candleCloseEpoch: number = 0,
+): MarketData {
+  const pair = getPair(symbol);
+  const tdSymbol = pair.twelvedata;
+
+  // Initialise from cache if available.
+  const initEntry = cache.get(cacheKey(symbol, timeframeId));
+  const [baseCandles, setBaseCandles] = useState<Candle[]>(
+    initEntry?.baseCandles ?? [],
+  );
+  const [price, setPrice] = useState<number | null>(initEntry?.price ?? null);
+  const [prevClose, setPrevClose] = useState<number | null>(
+    initEntry?.prevClose ?? null,
+  );
+  const [status, setStatus] = useState<FeedStatus>(
+    initEntry ? "live" : "connecting",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const reqId = useRef(0);
 
-  const load = useCallback(
+  // ── Full candle fetch ───────────────────────────────────────────────────────
+  const loadCandles = useCallback(
     async (isBackground: boolean) => {
       const id = ++reqId.current;
       if (!isBackground) setError(null);
 
       try {
-        const res = await fetchCandles({ data: { yahoo, timeframeId } });
+        const res = await fetchCandles({ data: { symbol: tdSymbol, timeframeId } });
         if (id !== reqId.current) return; // superseded
 
         if (res.ok) {
-          cache.set(key(symbol, timeframeId), {
-            candles: res.candles,
+          cache.set(cacheKey(symbol, timeframeId), {
+            baseCandles: res.candles,
             price: res.price,
             prevClose: res.prevClose,
             at: Date.now(),
           });
-          setCandles(res.candles);
+          setBaseCandles(res.candles);
           setPrice(res.price);
           setPrevClose(res.prevClose);
           setStatus("live");
@@ -83,33 +117,63 @@ export function useMarketData(symbol: string, timeframeId: string): MarketData {
         }
       }
     },
-    [symbol, timeframeId, yahoo],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [symbol, timeframeId, tdSymbol],
   );
 
-  // Initial / on-change load
+  // ── Lightweight price poll ──────────────────────────────────────────────────
+  const pollPrice = useCallback(async () => {
+    try {
+      const res = await fetchPrice({ data: { symbol: tdSymbol } });
+      if (res.ok) {
+        setPrice(res.price);
+        // Also update the cache entry's price so future cache hits are accurate.
+        const entry = cache.get(cacheKey(symbol, timeframeId));
+        if (entry) {
+          cache.set(cacheKey(symbol, timeframeId), { ...entry, price: res.price, at: entry.at });
+        }
+      }
+    } catch {
+      // Silent — price poll failures don't surface as errors
+    }
+  }, [symbol, timeframeId, tdSymbol]);
+
+  // ── Initial / on-change load ────────────────────────────────────────────────
   useEffect(() => {
-    const warm = cache.get(key(symbol, timeframeId));
+    const warm = cache.get(cacheKey(symbol, timeframeId));
     if (warm) {
-      setCandles(warm.candles);
+      setBaseCandles(warm.baseCandles);
       setPrice(warm.price);
       setPrevClose(warm.prevClose);
       setStatus("live");
       setError(null);
-      // Refresh in background if stale
-      if (Date.now() - warm.at > CACHE_TTL) void load(true);
+      if (Date.now() - warm.at > CACHE_TTL) void loadCandles(true);
     } else {
       setStatus("connecting");
-      void load(false);
+      void loadCandles(false);
     }
-  }, [symbol, timeframeId, load]);
+  }, [symbol, timeframeId, loadCandles]);
 
-  // Live polling
+  // ── Candle-close reload (epoch tick from useCandleTimer) ───────────────────
   useEffect(() => {
-    const timer = setInterval(() => void load(true), POLL_MS);
-    return () => clearInterval(timer);
-  }, [load]);
+    if (candleCloseEpoch === 0) return; // skip the initial mount
+    void loadCandles(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candleCloseEpoch]);
 
-  const refresh = useCallback(() => void load(false), [load]);
+  // ── Price polling ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const timer = setInterval(() => void pollPrice(), PRICE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [pollPrice]);
+
+  // ── Derive display candles (live price applied to forming candle) ───────────
+  const candles = useMemo(
+    () => (price != null ? applyLivePrice(baseCandles, price) : baseCandles),
+    [baseCandles, price],
+  );
+
+  const refresh = useCallback(() => void loadCandles(false), [loadCandles]);
 
   return {
     candles,
@@ -117,7 +181,7 @@ export function useMarketData(symbol: string, timeframeId: string): MarketData {
     prevClose,
     status,
     error,
-    isLoading: status === "connecting" && candles.length === 0,
+    isLoading: status === "connecting" && baseCandles.length === 0,
     refresh,
   };
 }

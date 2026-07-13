@@ -5,9 +5,9 @@
  *   unit:  m = minute, h = hour, d = day, w = week, mo = month
  *   id:    `${n}${unit}`   e.g. "1m", "15m", "4h", "1d", "1w", "1mo"
  *
- * Every timeframe is derived from ONE market feed (Yahoo Finance).  Native
- * Yahoo intervals are fetched directly; everything else is aggregated on the
- * server from a finer native interval so all timeframes share the same feed.
+ * Every timeframe is derived from Twelve Data API.  Native intervals are
+ * fetched directly; non-native intervals are aggregated from a finer
+ * native interval so all timeframes share the same data source.
  */
 
 export type TfUnit = "m" | "h" | "d" | "w" | "mo";
@@ -62,64 +62,161 @@ export function parseTimeframe(raw: string): Timeframe | null {
 
 /** Canonical ids of the default timeframe bar. */
 export const DEFAULT_TIMEFRAME_IDS = [
-  "1m", "5m", "10m", "15m", "30m", "1h", "4h", "12h", "1d", "1w", "1mo",
+  "1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1mo",
 ];
 
 /** Suggested quick-pick custom intervals shown in the picker. */
 export const QUICK_TIMEFRAME_IDS = [
-  "2m", "3m", "20m", "45m", "2h", "3h", "6h", "8h", "2d", "3d",
+  "2m", "3m", "10m", "20m", "45m", "2h", "3h", "8h", "12h", "2d", "3d",
 ];
 
 export function getTimeframe(id: string): Timeframe {
   return parseTimeframe(id) ?? parseTimeframe("15m")!;
 }
 
-// ─── Yahoo Finance mapping ──────────────────────────────────────────────────
+// ─── Twelve Data interval mapping ───────────────────────────────────────────
 
-export interface YahooPlan {
-  /** Yahoo interval string to request. */
+export interface TwelvedataPlan {
+  /** Twelve Data interval string (e.g. "15min", "4h", "1day"). */
   interval: string;
-  /** Yahoo range string to request. */
-  range: string;
-  /** Target aggregation bucket in seconds (0 = use the native interval as-is). */
+  /** Number of candles to request. */
+  outputsize: number;
+  /** Aggregation bucket in seconds — 0 means use the native interval as-is. */
   aggregateSeconds: number;
 }
 
-const NATIVE: Record<string, string> = {
-  "1m":  "1m",
-  "5m":  "5m",
-  "15m": "15m",
-  "30m": "30m",
-  "1h":  "60m",
-  "1d":  "1d",
-  "1w":  "1wk",
-  "1mo": "1mo",
+/** Native Twelve Data intervals. */
+const TD_NATIVE: Record<string, string> = {
+  "1m":  "1min",
+  "5m":  "5min",
+  "15m": "15min",
+  "30m": "30min",
+  "45m": "45min",
+  "1h":  "1h",
+  "2h":  "2h",
+  "4h":  "4h",
+  "8h":  "8h",
+  "1d":  "1day",
+  "1w":  "1week",
+  "1mo": "1month",
 };
 
 /**
- * Decide which native Yahoo interval to fetch and whether to aggregate.
- * Guarantees every timeframe is built from the same underlying feed.
+ * Return the Twelve Data fetch plan for a timeframe id.
+ * Non-native intervals aggregate from the finest suitable native interval.
  */
-export function yahooPlan(id: string): YahooPlan {
+export function twelvedataPlan(id: string): TwelvedataPlan {
   const tf = getTimeframe(id);
+  const native = TD_NATIVE[tf.id];
 
-  // Native intervals — fetch directly, no aggregation.
-  const native = NATIVE[tf.id];
   if (native) {
-    const range =
-      tf.seconds < 300 ? "7d"
-      : tf.seconds < 3_600 ? "60d"
-      : tf.seconds < 86_400 ? "730d"
-      : tf.seconds < 604_800 ? "10y"
-      : "max";
-    return { interval: native, range, aggregateSeconds: 0 };
+    const outputsize =
+      tf.unit === "mo" ? 100
+      : tf.unit === "w" ? 200
+      : 500;
+    return { interval: native, outputsize, aggregateSeconds: 0 };
   }
 
-  // Non-native — pick the finest base that covers enough history, then aggregate.
-  if (tf.seconds < 300)     return { interval: "1m",  range: "7d",   aggregateSeconds: tf.seconds };
-  if (tf.seconds < 3_600)   return { interval: "5m",  range: "60d",  aggregateSeconds: tf.seconds };
-  if (tf.seconds < 86_400)  return { interval: "60m", range: "730d", aggregateSeconds: tf.seconds };
-  if (tf.seconds < 604_800) return { interval: "1d",  range: "10y",  aggregateSeconds: tf.seconds };
-  if (tf.seconds < 2_592_000) return { interval: "1wk", range: "max", aggregateSeconds: tf.seconds };
-  return { interval: "1mo", range: "max", aggregateSeconds: tf.seconds };
+  // Minute-based non-native: aggregate from 1min
+  if (tf.unit === "m") {
+    return {
+      interval: "1min",
+      outputsize: Math.min(500 * tf.count, 5000),
+      aggregateSeconds: tf.seconds,
+    };
+  }
+
+  // Hour-based non-native
+  if (tf.unit === "h") {
+    // Pick finest native base that divides evenly, or fall back to 1h
+    if (tf.count % 4 === 0) {
+      return {
+        interval: "4h",
+        outputsize: Math.min(500 * Math.ceil(tf.count / 4), 5000),
+        aggregateSeconds: tf.seconds,
+      };
+    }
+    if (tf.count % 2 === 0) {
+      return {
+        interval: "2h",
+        outputsize: Math.min(500 * Math.ceil(tf.count / 2), 5000),
+        aggregateSeconds: tf.seconds,
+      };
+    }
+    return {
+      interval: "1h",
+      outputsize: Math.min(500 * tf.count, 5000),
+      aggregateSeconds: tf.seconds,
+    };
+  }
+
+  // Day-based non-native: aggregate from 1day
+  if (tf.unit === "d") {
+    return {
+      interval: "1day",
+      outputsize: Math.min(500 * tf.count, 5000),
+      aggregateSeconds: tf.count * 86_400,
+    };
+  }
+
+  // Fallback for exotic week/month combos
+  return { interval: "1day", outputsize: 5000, aggregateSeconds: tf.seconds };
+}
+
+// ─── Candle close countdown ──────────────────────────────────────────────────
+
+/**
+ * Compute the number of seconds until the current candle of the given
+ * timeframe closes, based on UTC-aligned candle boundaries.
+ */
+export function candleSecondsLeft(timeframeId: string): number {
+  const now = Date.now();
+  const nowSec = Math.floor(now / 1000);
+  const tf = getTimeframe(timeframeId);
+
+  if (tf.unit === "mo") {
+    const d = new Date(now);
+    const nextClose = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + tf.count, 1);
+    return Math.max(0, Math.floor((nextClose - now) / 1000));
+  }
+
+  if (tf.unit === "w") {
+    // Forex week candles close at Monday 00:00 UTC
+    const d = new Date(now);
+    const dow = d.getUTCDay(); // 0=Sun … 6=Sat
+    const daysUntilMon = ((8 - dow) % 7) || 7;
+    const nextClose = Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate() + daysUntilMon,
+    );
+    return Math.max(0, Math.floor((nextClose - now) / 1000));
+  }
+
+  // For d/h/m: align candle boundaries to UTC epoch multiples
+  const periodSecs =
+    tf.unit === "d" ? tf.count * 86_400 : tf.seconds;
+  const nextClose = (Math.floor(nowSec / periodSecs) + 1) * periodSecs;
+  return Math.max(0, nextClose - nowSec);
+}
+
+/** Format a seconds value as a human-readable countdown string. */
+export function formatCountdown(totalSeconds: number): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (totalSeconds >= 86_400) {
+    const d = Math.floor(totalSeconds / 86_400);
+    const h = Math.floor((totalSeconds % 86_400) / 3_600);
+    const m = Math.floor((totalSeconds % 3_600) / 60);
+    const s = totalSeconds % 60;
+    return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+  if (totalSeconds >= 3_600) {
+    const h = Math.floor(totalSeconds / 3_600);
+    const m = Math.floor((totalSeconds % 3_600) / 60);
+    const s = totalSeconds % 60;
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${pad(m)}:${pad(s)}`;
 }

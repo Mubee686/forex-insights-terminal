@@ -1,43 +1,62 @@
 /**
- * Server-only market data helpers.  Fetches OHLC from Yahoo Finance — a single
- * live feed shared by every timeframe.  Non-native intervals are aggregated
- * from a finer native interval so all timeframes are built from the same data.
+ * Server-only market data helpers.  Fetches OHLC from the Twelve Data API.
+ * Non-native intervals are aggregated from a finer native interval so all
+ * timeframes are built from the same underlying feed.
  *
- * This file is server-only (imported by market.functions.ts inside its handler
- * / at module scope of a *.server.ts file which the bundler strips from the
- * client).
+ * This file is server-only — imported by market.functions.ts inside its
+ * handler so the bundler strips it from the client bundle.
  */
 import type { Candle } from "./forex";
-import { yahooPlan } from "./timeframes";
+import { twelvedataPlan } from "./timeframes";
 
-export interface MarketSeries {
-  candles: Candle[];
-  /** Latest traded price from the feed — identical across all timeframes. */
-  price: number;
-  /** Previous session close, for day-change calculation. */
-  prevClose: number | null;
-  currency: string | null;
-}
-
-interface YahooResult {
-  timestamp?: number[];
-  indicators?: {
-    quote?: Array<{
-      open?: (number | null)[];
-      high?: (number | null)[];
-      low?: (number | null)[];
-      close?: (number | null)[];
-    }>;
-  };
-  meta?: {
-    regularMarketPrice?: number;
-    chartPreviousClose?: number;
-    previousClose?: number;
-    currency?: string;
-  };
-}
-
+const BASE_URL = "https://api.twelvedata.com";
 const MAX_CANDLES = 1500;
+
+function apiKey(): string {
+  const key = process.env.TWELVEDATA_API_KEY;
+  if (!key) throw new Error("TWELVEDATA_API_KEY is not set");
+  return key;
+}
+
+/** Parse a Twelve Data datetime string to a UTC Unix timestamp (seconds). */
+function parseDatetime(dt: string): number {
+  if (dt.length === 10) {
+    // "YYYY-MM-DD"
+    return (
+      Date.UTC(
+        parseInt(dt.slice(0, 4), 10),
+        parseInt(dt.slice(5, 7), 10) - 1,
+        parseInt(dt.slice(8, 10), 10),
+      ) / 1000
+    );
+  }
+  // "YYYY-MM-DD HH:MM:SS"
+  return (
+    Date.UTC(
+      parseInt(dt.slice(0, 4), 10),
+      parseInt(dt.slice(5, 7), 10) - 1,
+      parseInt(dt.slice(8, 10), 10),
+      parseInt(dt.slice(11, 13), 10),
+      parseInt(dt.slice(14, 16), 10),
+      parseInt(dt.slice(17, 19), 10),
+    ) / 1000
+  );
+}
+
+interface TdValue {
+  datetime: string;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+}
+
+interface TdTimeSeries {
+  status?: string;
+  code?: number;
+  message?: string;
+  values?: TdValue[];
+}
 
 /** Aggregate fine candles into fixed-second buckets (TradingView-style). */
 function aggregate(base: Candle[], bucketSeconds: number): Candle[] {
@@ -62,89 +81,118 @@ function aggregate(base: Candle[], bucketSeconds: number): Candle[] {
   return out;
 }
 
+export interface MarketSeries {
+  candles: Candle[];
+  /** Latest traded price from the feed. */
+  price: number;
+  /** Previous UTC-day close for day-change calculation. */
+  prevClose: number | null;
+}
+
 /**
- * Fetch a market series for a Yahoo symbol + timeframe id.
- * Throws on network / provider failure so the caller can surface a real error
- * (we never silently substitute synthetic data).
+ * Fetch a full market series for a Twelve Data symbol + timeframe.
+ * Throws on network / API failure — never returns synthetic data.
  */
 export async function fetchMarketSeries(
-  yahooSymbol: string,
+  tdSymbol: string,
   timeframeId: string,
 ): Promise<MarketSeries> {
-  const plan = yahooPlan(timeframeId);
+  const plan = twelvedataPlan(timeframeId);
+
   const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}` +
-    `?interval=${plan.interval}&range=${plan.range}&includePrePost=false`;
+    `${BASE_URL}/time_series` +
+    `?symbol=${encodeURIComponent(tdSymbol)}` +
+    `&interval=${plan.interval}` +
+    `&outputsize=${plan.outputsize}` +
+    `&timezone=UTC` +
+    `&apikey=${apiKey()}`;
 
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; MF-SMC-Trader/1.0)",
-      Accept: "application/json",
-    },
-    signal: AbortSignal.timeout(12_000),
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!res.ok) {
-    throw new Error(`Yahoo Finance HTTP ${res.status}`);
+    throw new Error(`Twelve Data HTTP ${res.status}`);
   }
 
-  const json = (await res.json()) as {
-    chart?: { result?: YahooResult[]; error?: { description?: string } | null };
-  };
+  const json = (await res.json()) as TdTimeSeries;
 
-  if (json.chart?.error) {
-    throw new Error(json.chart.error.description ?? "Yahoo Finance error");
+  if (json.status === "error" || json.code != null) {
+    throw new Error(json.message ?? "Twelve Data API error");
   }
 
-  const result = json.chart?.result?.[0];
-  const ts = result?.timestamp;
-  const quote = result?.indicators?.quote?.[0];
-
-  if (!result || !ts || !quote) {
+  if (!json.values || json.values.length === 0) {
     throw new Error("No data returned for this instrument");
   }
 
-  const base: Candle[] = [];
-  for (let i = 0; i < ts.length; i++) {
-    const o = quote.open?.[i];
-    const h = quote.high?.[i];
-    const l = quote.low?.[i];
-    const c = quote.close?.[i];
-    if (o == null || h == null || l == null || c == null) continue;
-    if (!Number.isFinite(o) || !Number.isFinite(c) || h < l) continue;
-    base.push({ time: ts[i], open: o, high: h, low: l, close: c });
+  // Twelve Data returns newest-first — reverse to oldest-first for the chart.
+  const rawCandles: Candle[] = [];
+  for (const v of [...json.values].reverse()) {
+    const o = parseFloat(v.open);
+    const h = parseFloat(v.high);
+    const l = parseFloat(v.low);
+    const c = parseFloat(v.close);
+    if (!Number.isFinite(o) || !Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(c)) continue;
+    if (h < l) continue;
+    rawCandles.push({ time: parseDatetime(v.datetime), open: o, high: h, low: l, close: c });
   }
 
-  if (base.length === 0) {
+  if (rawCandles.length === 0) {
     throw new Error("No valid candles in feed response");
   }
 
-  let candles = aggregate(base, plan.aggregateSeconds);
+  let candles = aggregate(rawCandles, plan.aggregateSeconds);
   if (candles.length > MAX_CANDLES) {
     candles = candles.slice(candles.length - MAX_CANDLES);
   }
 
-  const meta = result.meta ?? {};
-  const price =
-    Number.isFinite(meta.regularMarketPrice)
-      ? (meta.regularMarketPrice as number)
-      : candles[candles.length - 1].close;
+  // Latest price = close of the most recent (forming) candle.
+  const price = candles[candles.length - 1].close;
 
-  // Force the forming candle's close to equal the live price so the current
-  // market price is identical across every timeframe.
-  const last = candles[candles.length - 1];
-  if (Number.isFinite(price)) {
-    last.close = price;
-    last.high = Math.max(last.high, price);
-    last.low = Math.min(last.low, price);
+  // prevClose = close of the last candle that started before today's UTC midnight.
+  const todayUtcMidnight =
+    Math.floor(Date.now() / 86_400_000) * 86_400;
+  let prevClose: number | null = null;
+  for (let i = candles.length - 1; i >= 0; i--) {
+    if (candles[i].time < todayUtcMidnight) {
+      prevClose = candles[i].close;
+      break;
+    }
   }
 
-  const prevClose =
-    Number.isFinite(meta.chartPreviousClose)
-      ? (meta.chartPreviousClose as number)
-      : Number.isFinite(meta.previousClose)
-        ? (meta.previousClose as number)
-        : null;
+  return { candles, price, prevClose };
+}
 
-  return { candles, price, prevClose, currency: meta.currency ?? null };
+/**
+ * Fetch only the current price for a symbol.
+ * Uses the lightweight /price endpoint — much cheaper on the rate-limit budget.
+ */
+export async function fetchCurrentPrice(tdSymbol: string): Promise<number> {
+  const url =
+    `${BASE_URL}/price` +
+    `?symbol=${encodeURIComponent(tdSymbol)}` +
+    `&apikey=${apiKey()}`;
+
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(8_000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Twelve Data price HTTP ${res.status}`);
+  }
+
+  const json = (await res.json()) as { price?: string; code?: number; message?: string };
+
+  if (json.code != null) {
+    throw new Error(json.message ?? "Twelve Data price error");
+  }
+
+  const price = parseFloat(json.price ?? "");
+  if (!Number.isFinite(price)) {
+    throw new Error("Invalid price response from Twelve Data");
+  }
+
+  return price;
 }
