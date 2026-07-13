@@ -200,6 +200,39 @@ export function candleSecondsLeft(timeframeId: string): number {
   return Math.max(0, nextClose - nowSec);
 }
 
+/**
+ * Compute the UTC open timestamp (seconds) of the CURRENT candle for a
+ * given timeframe.  This is the boundary where the new candle begins.
+ */
+export function candleOpenTime(timeframeId: string): number {
+  const now = Date.now();
+  const nowSec = Math.floor(now / 1000);
+  const tf = getTimeframe(timeframeId);
+
+  if (tf.unit === "mo") {
+    const d = new Date(now);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000;
+  }
+
+  if (tf.unit === "w") {
+    // Forex week candles open Monday 00:00 UTC
+    const d = new Date(now);
+    const dow = d.getUTCDay(); // 0=Sun … 6=Sat
+    const daysFromMon = (dow + 6) % 7; // 0 on Mon, 6 on Sun
+    return (
+      Date.UTC(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate() - daysFromMon,
+      ) / 1000
+    );
+  }
+
+  const periodSecs =
+    tf.unit === "d" ? tf.count * 86_400 : tf.seconds;
+  return Math.floor(nowSec / periodSecs) * periodSecs;
+}
+
 /** Format a seconds value as a human-readable countdown string. */
 export function formatCountdown(totalSeconds: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");

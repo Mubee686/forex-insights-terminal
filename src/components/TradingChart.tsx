@@ -1,8 +1,13 @@
 /**
- * TradingView-style chart powered by TradingView's own `lightweight-charts`
- * engine.  The chart instance is created ONCE and reused; only the candle data
- * is updated.  SMC zones are drawn on a synced overlay canvas on top of the
- * chart pane.
+ * TradingView-style chart powered by lightweight-charts.
+ *
+ * Chart instance is created ONCE and reused.  Candle data is pushed via:
+ *   series.setData()  — on full reloads (symbol/TF change, epoch fetch)
+ *   series.update()   — on live price ticks (only last bar changes)
+ *
+ * This avoids visual wick flickering that happens when setData() is called
+ * on every 15-second price poll.  SMC zones are drawn on a synced overlay
+ * canvas sitting on top of the chart pane.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -28,7 +33,7 @@ interface Props {
   isLoading?: boolean;
 }
 
-// ─── chart palette (canvas library needs concrete colors) ────────────────────
+// ─── chart palette ───────────────────────────────────────────────────────────
 const C = {
   bg: "#0e1117",
   text: "#a9b3c4",
@@ -50,13 +55,23 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+function toBar(c: Candle): CandlestickData {
+  return {
+    time: c.time as UTCTimestamp,
+    open: c.open,
+    high: c.high,
+    low: c.low,
+    close: c.close,
+  };
+}
+
 export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
 
-  // latest data kept in refs so the overlay draw always sees current values
+  // Keep refs so overlay draw always sees current values
   const candlesRef = useRef<Candle[]>(candles);
   const zonesRef = useRef<Zone[]>(zones);
   const digitsRef = useRef<number>(digits);
@@ -64,9 +79,12 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
   zonesRef.current = zones;
   digitsRef.current = digits;
 
+  // Track previous candles to decide setData vs update
+  const prevCandlesRef = useRef<Candle[]>([]);
+
   const [legend, setLegend] = useState<Candle | null>(null);
 
-  // ── overlay drawing ────────────────────────────────────────────────────────
+  // ── overlay drawing ───────────────────────────────────────────────────────
   const drawOverlay = useRef<() => void>(() => {});
   drawOverlay.current = () => {
     const chart = chartRef.current;
@@ -109,11 +127,10 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     for (const z of zonesRef.current) {
       const color = toolColor(z.tool);
       let x0 = xOf(z.startIndex);
-      if (x0 == null) x0 = 0; // scrolled off left → clamp to pane edge
-      const x1 = paneRight; // extend zones to the right like TradingView
+      if (x0 == null) x0 = 0;
+      const x1 = paneRight;
 
       if (z.priceHigh != null && z.priceLow != null) {
-        // Box zone (OB / FVG / POI)
         const yh = yOf(z.priceHigh);
         const yl = yOf(z.priceLow);
         if (yh == null || yl == null) continue;
@@ -125,13 +142,11 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
         ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, h);
-        // label
         ctx.fillStyle = hexToRgba(color, 0.95);
         ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
         ctx.textBaseline = "bottom";
         ctx.fillText(z.label, x0 + 4, top - 1 > 10 ? top - 1 : top + 11);
       } else if (z.price != null) {
-        // Line zone (Liquidity / BOS / CHoCH)
         const y = yOf(z.price);
         if (y == null) continue;
         ctx.strokeStyle = hexToRgba(color, 0.9);
@@ -174,7 +189,6 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
       },
       rightPriceScale: {
         borderColor: C.border,
-        // TradingView-style dense price ladder that re-spaces on zoom
         scaleMargins: { top: 0.08, bottom: 0.08 },
         entireTextOnly: false,
         ticksVisible: true,
@@ -211,7 +225,6 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     chartRef.current = chart;
     seriesRef.current = series;
 
-    // Resize handling
     const ro = new ResizeObserver(() => {
       const w = container.clientWidth;
       const h = container.clientHeight;
@@ -223,11 +236,9 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     ro.observe(container);
     chart.resize(container.clientWidth, container.clientHeight);
 
-    // Redraw overlay on any pan/zoom
     const onRange = () => drawOverlay.current();
     chart.timeScale().subscribeVisibleLogicalRangeChange(onRange);
 
-    // Crosshair OHLC legend
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.seriesData.size) {
         setLegend(null);
@@ -245,9 +256,9 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
       }
     });
 
-    // Initial data
     if (candlesRef.current.length) {
-      series.setData(mapData(candlesRef.current));
+      series.setData(candlesRef.current.map(toBar));
+      prevCandlesRef.current = candlesRef.current;
       chart.timeScale().fitContent();
       drawOverlay.current();
     }
@@ -262,7 +273,7 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── update price format when digits change ──────────────────────────────────
+  // ── update price format when digits change ──────────────────────────────
   useEffect(() => {
     seriesRef.current?.applyOptions({
       priceFormat: {
@@ -273,24 +284,42 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     });
   }, [digits]);
 
-  // ── push new candle data (reuses the same series) ──────────────────────────
+  // ── smart candle push: update() for live bar, setData() for full reload ──
   useEffect(() => {
     const series = seriesRef.current;
     if (!series || candles.length === 0) return;
-    series.setData(mapData(candles));
+
+    const prev = prevCandlesRef.current;
+    const last = candles[candles.length - 1];
+    const prevLast = prev[prev.length - 1];
+
+    // Live update: same candle count and same last-bar timestamp → only OHLC changed
+    if (
+      prev.length > 0 &&
+      prev.length === candles.length &&
+      prevLast?.time === last?.time
+    ) {
+      series.update(toBar(last));
+    } else {
+      // Full reload: candle count changed or first data
+      series.setData(candles.map(toBar));
+    }
+
+    prevCandlesRef.current = candles;
     drawOverlay.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles]);
 
-  // ── re-fit when symbol / timeframe changes ─────────────────────────────────
+  // ── re-fit + clear prev-ref when symbol / timeframe changes ────────────
   useEffect(() => {
+    prevCandlesRef.current = [];
     if (candles.length === 0) return;
     chartRef.current?.timeScale().fitContent();
     drawOverlay.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
-  // ── redraw overlay when zones change ───────────────────────────────────────
+  // ── redraw overlay when zones change ───────────────────────────────────
   useEffect(() => {
     drawOverlay.current();
   }, [zones]);
@@ -319,14 +348,4 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
       )}
     </div>
   );
-}
-
-function mapData(candles: Candle[]): CandlestickData[] {
-  return candles.map((c) => ({
-    time: c.time as UTCTimestamp,
-    open: c.open,
-    high: c.high,
-    low: c.low,
-    close: c.close,
-  }));
 }

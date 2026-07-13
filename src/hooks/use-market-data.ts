@@ -7,12 +7,21 @@
  *  • Price-only fetch   — every 15 s between full reloads; updates the live
  *                         price and adjusts the last (forming) candle in-place
  *
- * Never falls back to synthetic data — surfaces real errors instead.
+ * Live candle rules (matches TradingView behaviour):
+ *  • close  = latest price
+ *  • high   = max(existing high, latest price)  — only ever increases
+ *  • low    = min(existing low,  latest price)  — only ever decreases
+ *  • On candle close: a new synthetic candle is appended IMMEDIATELY at the
+ *    correct UTC boundary so the chart transitions without waiting for the
+ *    API round-trip.  The API response then replaces it with real data.
+ *
+ * Never falls back to synthetic data for historical candles — errors surface.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Candle } from "@/lib/forex";
 import { getPair } from "@/lib/forex";
 import { fetchCandles, fetchPrice } from "@/lib/market.functions";
+import { candleOpenTime } from "@/lib/timeframes";
 
 export type FeedStatus = "connecting" | "live" | "error";
 
@@ -26,10 +35,9 @@ export interface MarketData {
   refresh: () => void;
 }
 
-// ─── Module-level cache ───────────────────────────────────────────────────────
+// ─── Module-level cache ──────────────────────────────────────────────────────
 
 interface CacheEntry {
-  /** Base candles straight from the last full fetch. */
   baseCandles: Candle[];
   price: number;
   prevClose: number | null;
@@ -37,25 +45,49 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 30_000;  // stale threshold for background refresh
-const PRICE_POLL_MS = 15_000; // lightweight price poll cadence
+const CACHE_TTL = 30_000;
+const PRICE_POLL_MS = 15_000;
 
 function cacheKey(symbol: string, tf: string) {
   return `${symbol}|${tf}`;
 }
 
-/** Apply the live price to the last (forming) candle without mutating the array. */
+/**
+ * Apply the live price to the last (forming) candle.
+ * High only ever increases; low only ever decreases.
+ * Returns the same array reference if nothing changed (avoids re-renders).
+ */
 function applyLivePrice(base: Candle[], price: number): Candle[] {
   if (!base.length) return base;
   const last = base[base.length - 1];
-  if (price === last.close) return base; // nothing changed
-  const updated: Candle = {
-    ...last,
-    close: price,
-    high: Math.max(last.high, price),
-    low: Math.min(last.low, price),
-  };
+  const newHigh = Math.max(last.high, price);
+  const newLow  = Math.min(last.low,  price);
+  if (price === last.close && newHigh === last.high && newLow === last.low) {
+    return base; // nothing changed
+  }
+  const updated: Candle = { ...last, close: price, high: newHigh, low: newLow };
   return [...base.slice(0, -1), updated];
+}
+
+/**
+ * Append a brand-new forming candle at the correct UTC boundary time.
+ * Called the instant the timer hits 00:00 so the chart transitions
+ * without waiting for the API round-trip.
+ */
+function appendNewCandle(base: Candle[], timeframeId: string, openPrice: number): Candle[] {
+  if (!base.length || openPrice <= 0) return base;
+  const newTime = candleOpenTime(timeframeId);
+  const lastTime = base[base.length - 1].time;
+  // Guard: don't duplicate if the last candle is already at this boundary
+  if (lastTime === newTime) return base;
+  const newCandle: Candle = {
+    time: newTime,
+    open: openPrice,
+    high: openPrice,
+    low: openPrice,
+    close: openPrice,
+  };
+  return [...base, newCandle];
 }
 
 export function useMarketData(
@@ -67,7 +99,6 @@ export function useMarketData(
   const pair = getPair(symbol);
   const tdSymbol = pair.twelvedata;
 
-  // Initialise from cache if available.
   const initEntry = cache.get(cacheKey(symbol, timeframeId));
   const [baseCandles, setBaseCandles] = useState<Candle[]>(
     initEntry?.baseCandles ?? [],
@@ -82,8 +113,11 @@ export function useMarketData(
   const [error, setError] = useState<string | null>(null);
 
   const reqId = useRef(0);
+  // Keep a stable ref to the current price so the epoch handler can read it
+  const priceRef = useRef<number | null>(price);
+  priceRef.current = price;
 
-  // ── Full candle fetch ───────────────────────────────────────────────────────
+  // ── Full candle fetch ─────────────────────────────────────────────────────
   const loadCandles = useCallback(
     async (isBackground: boolean) => {
       const id = ++reqId.current;
@@ -121,16 +155,20 @@ export function useMarketData(
     [symbol, timeframeId, tdSymbol],
   );
 
-  // ── Lightweight price poll ──────────────────────────────────────────────────
+  // ── Lightweight price poll ────────────────────────────────────────────────
   const pollPrice = useCallback(async () => {
     try {
       const res = await fetchPrice({ data: { symbol: tdSymbol } });
       if (res.ok) {
         setPrice(res.price);
-        // Also update the cache entry's price so future cache hits are accurate.
+        priceRef.current = res.price;
         const entry = cache.get(cacheKey(symbol, timeframeId));
         if (entry) {
-          cache.set(cacheKey(symbol, timeframeId), { ...entry, price: res.price, at: entry.at });
+          cache.set(cacheKey(symbol, timeframeId), {
+            ...entry,
+            price: res.price,
+            at: entry.at,
+          });
         }
       }
     } catch {
@@ -138,7 +176,7 @@ export function useMarketData(
     }
   }, [symbol, timeframeId, tdSymbol]);
 
-  // ── Initial / on-change load ────────────────────────────────────────────────
+  // ── Initial / on-symbol-or-TF-change load ────────────────────────────────
   useEffect(() => {
     const warm = cache.get(cacheKey(symbol, timeframeId));
     if (warm) {
@@ -154,20 +192,27 @@ export function useMarketData(
     }
   }, [symbol, timeframeId, loadCandles]);
 
-  // ── Candle-close reload (epoch tick from useCandleTimer) ───────────────────
+  // ── Candle-close: instant synthetic new candle + background fetch ─────────
   useEffect(() => {
-    if (candleCloseEpoch === 0) return; // skip the initial mount
+    if (candleCloseEpoch === 0) return; // skip mount
+
+    // 1. Immediately append a new candle at the correct UTC boundary so the
+    //    chart transitions without a gap while the API request is in-flight.
+    const openPrice = priceRef.current ?? 0;
+    setBaseCandles((prev) => appendNewCandle(prev, timeframeId, openPrice));
+
+    // 2. Fetch fresh candle data in the background to replace the placeholder.
     void loadCandles(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candleCloseEpoch]);
 
-  // ── Price polling ───────────────────────────────────────────────────────────
+  // ── Price polling ─────────────────────────────────────────────────────────
   useEffect(() => {
     const timer = setInterval(() => void pollPrice(), PRICE_POLL_MS);
     return () => clearInterval(timer);
   }, [pollPrice]);
 
-  // ── Derive display candles (live price applied to forming candle) ───────────
+  // ── Derive display candles (live price applied to forming candle) ─────────
   const candles = useMemo(
     () => (price != null ? applyLivePrice(baseCandles, price) : baseCandles),
     [baseCandles, price],
