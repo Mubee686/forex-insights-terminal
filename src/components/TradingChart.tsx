@@ -17,12 +17,15 @@ import {
   type IChartApi,
   type ISeriesApi,
   type CandlestickData,
+  type LineData,
   type UTCTimestamp,
 } from "lightweight-charts";
 
 import type { Candle } from "@/lib/forex";
 import { formatPrice } from "@/lib/forex";
 import { TOOLS, type Zone } from "@/lib/smc";
+
+export type ChartType = "candlestick" | "line";
 
 interface Props {
   candles: Candle[];
@@ -31,6 +34,7 @@ interface Props {
   /** Changes when symbol or timeframe changes → chart re-fits content. */
   resetKey: string;
   isLoading?: boolean;
+  chartType?: ChartType;
 }
 
 // ─── chart palette ───────────────────────────────────────────────────────────
@@ -44,8 +48,7 @@ const C = {
   crosshair: "rgba(148,163,184,0.5)",
 };
 
-const toolColor = (id: Zone["tool"]) =>
-  TOOLS.find((t) => t.id === id)?.color ?? "#38bdf8";
+const toolColor = (id: Zone["tool"]) => TOOLS.find((t) => t.id === id)?.color ?? "#38bdf8";
 
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace("#", "");
@@ -65,11 +68,86 @@ function toBar(c: Candle): CandlestickData {
   };
 }
 
-export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Props) {
+function toLinePoint(c: Candle): LineData {
+  return { time: c.time as UTCTimestamp, value: c.close };
+}
+
+function createSeriesForType(
+  chart: IChartApi,
+  type: ChartType,
+  digits: number,
+): ISeriesApi<"Candlestick"> | ISeriesApi<"Line"> {
+  const priceFormat = {
+    type: "price" as const,
+    precision: digits,
+    minMove: 1 / Math.pow(10, digits),
+  };
+
+  if (type === "line") {
+    return chart.addLineSeries({
+      color: C.bull,
+      lineWidth: 2,
+      priceLineVisible: true,
+      priceLineColor: "#2962ff",
+      priceLineWidth: 1,
+      lastValueVisible: true,
+      crosshairMarkerVisible: true,
+      priceFormat,
+    });
+  }
+
+  return chart.addCandlestickSeries({
+    upColor: C.bull,
+    downColor: C.bear,
+    borderUpColor: C.bull,
+    borderDownColor: C.bear,
+    wickUpColor: C.bull,
+    wickDownColor: C.bear,
+    priceLineVisible: true,
+    priceLineColor: "#2962ff",
+    priceLineWidth: 1,
+    lastValueVisible: true,
+    priceFormat,
+  });
+}
+
+function pushSeriesData(
+  series: ISeriesApi<"Candlestick"> | ISeriesApi<"Line">,
+  type: ChartType,
+  candles: Candle[],
+) {
+  if (type === "line") {
+    (series as ISeriesApi<"Line">).setData(candles.map(toLinePoint));
+  } else {
+    (series as ISeriesApi<"Candlestick">).setData(candles.map(toBar));
+  }
+}
+
+function updateSeriesLast(
+  series: ISeriesApi<"Candlestick"> | ISeriesApi<"Line">,
+  type: ChartType,
+  last: Candle,
+) {
+  if (type === "line") {
+    (series as ISeriesApi<"Line">).update(toLinePoint(last));
+  } else {
+    (series as ISeriesApi<"Candlestick">).update(toBar(last));
+  }
+}
+
+export function TradingChart({
+  candles,
+  zones,
+  digits,
+  resetKey,
+  isLoading,
+  chartType = "candlestick",
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | ISeriesApi<"Line"> | null>(null);
+  const seriesTypeRef = useRef<ChartType>(chartType);
 
   // Keep refs so overlay draw always sees current values
   const candlesRef = useRef<Candle[]>(candles);
@@ -184,8 +262,18 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: C.crosshair, width: 1, style: LineStyle.Dashed, labelBackgroundColor: "#1b2436" },
-        horzLine: { color: C.crosshair, width: 1, style: LineStyle.Dashed, labelBackgroundColor: "#1b2436" },
+        vertLine: {
+          color: C.crosshair,
+          width: 1,
+          style: LineStyle.Dashed,
+          labelBackgroundColor: "#1b2436",
+        },
+        horzLine: {
+          color: C.crosshair,
+          width: 1,
+          style: LineStyle.Dashed,
+          labelBackgroundColor: "#1b2436",
+        },
       },
       rightPriceScale: {
         borderColor: C.border,
@@ -204,23 +292,7 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
       autoSize: false,
     });
 
-    const series = chart.addCandlestickSeries({
-      upColor: C.bull,
-      downColor: C.bear,
-      borderUpColor: C.bull,
-      borderDownColor: C.bear,
-      wickUpColor: C.bull,
-      wickDownColor: C.bear,
-      priceLineVisible: true,
-      priceLineColor: "#2962ff",
-      priceLineWidth: 1,
-      lastValueVisible: true,
-      priceFormat: {
-        type: "price",
-        precision: digitsRef.current,
-        minMove: 1 / Math.pow(10, digitsRef.current),
-      },
-    });
+    const series = createSeriesForType(chart, seriesTypeRef.current, digitsRef.current);
 
     chartRef.current = chart;
     seriesRef.current = series;
@@ -244,8 +316,19 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
         setLegend(null);
         return;
       }
-      const d = param.seriesData.get(series) as CandlestickData | undefined;
-      if (d) {
+      const raw = param.seriesData.get(series as ISeriesApi<"Candlestick" | "Line">);
+      if (!raw) return;
+      if (seriesTypeRef.current === "line") {
+        const d = raw as LineData;
+        setLegend({
+          time: Number(param.time),
+          open: d.value,
+          high: d.value,
+          low: d.value,
+          close: d.value,
+        });
+      } else {
+        const d = raw as CandlestickData;
         setLegend({
           time: Number(param.time),
           open: d.open,
@@ -257,7 +340,7 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     });
 
     if (candlesRef.current.length) {
-      series.setData(candlesRef.current.map(toBar));
+      pushSeriesData(series, seriesTypeRef.current, candlesRef.current);
       prevCandlesRef.current = candlesRef.current;
       chart.timeScale().fitContent();
       drawOverlay.current();
@@ -270,7 +353,6 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
       chartRef.current = null;
       seriesRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── update price format when digits change ──────────────────────────────
@@ -294,21 +376,34 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     const prevLast = prev[prev.length - 1];
 
     // Live update: same candle count and same last-bar timestamp → only OHLC changed
-    if (
-      prev.length > 0 &&
-      prev.length === candles.length &&
-      prevLast?.time === last?.time
-    ) {
-      series.update(toBar(last));
+    if (prev.length > 0 && prev.length === candles.length && prevLast?.time === last?.time) {
+      updateSeriesLast(series, seriesTypeRef.current, last);
     } else {
       // Full reload: candle count changed or first data
-      series.setData(candles.map(toBar));
+      pushSeriesData(series, seriesTypeRef.current, candles);
     }
 
     prevCandlesRef.current = candles;
     drawOverlay.current();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles]);
+
+  // ── swap series type (candlestick ⇄ line) without recreating the chart ──
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || seriesTypeRef.current === chartType) return;
+
+    if (seriesRef.current) chart.removeSeries(seriesRef.current);
+    const series = createSeriesForType(chart, chartType, digitsRef.current);
+    seriesRef.current = series;
+    seriesTypeRef.current = chartType;
+
+    if (candlesRef.current.length) {
+      pushSeriesData(series, chartType, candlesRef.current);
+      prevCandlesRef.current = candlesRef.current;
+      chart.timeScale().fitContent();
+    }
+    drawOverlay.current();
+  }, [chartType]);
 
   // ── re-fit + clear prev-ref when symbol / timeframe changes ────────────
   useEffect(() => {
@@ -327,23 +422,37 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="absolute inset-0" />
-      <canvas
-        ref={overlayRef}
-        className="pointer-events-none absolute inset-0"
-      />
+      <canvas ref={overlayRef} className="pointer-events-none absolute inset-0" />
 
       {legend && (
         <div className="pointer-events-none absolute left-2 top-2 z-10 flex gap-3 rounded-md bg-panel/80 px-2.5 py-1 text-[11px] backdrop-blur-sm">
-          <span className="text-muted-foreground">O <span className="tabular text-foreground">{formatPrice(legend.open, digits)}</span></span>
-          <span className="text-muted-foreground">H <span className="tabular text-foreground">{formatPrice(legend.high, digits)}</span></span>
-          <span className="text-muted-foreground">L <span className="tabular text-foreground">{formatPrice(legend.low, digits)}</span></span>
-          <span className="text-muted-foreground">C <span className="tabular text-foreground">{formatPrice(legend.close, digits)}</span></span>
+          <span className="text-muted-foreground">
+            O <span className="tabular text-foreground">{formatPrice(legend.open, digits)}</span>
+          </span>
+          <span className="text-muted-foreground">
+            H <span className="tabular text-foreground">{formatPrice(legend.high, digits)}</span>
+          </span>
+          <span className="text-muted-foreground">
+            L <span className="tabular text-foreground">{formatPrice(legend.low, digits)}</span>
+          </span>
+          <span className="text-muted-foreground">
+            C <span className="tabular text-foreground">{formatPrice(legend.close, digits)}</span>
+          </span>
         </div>
       )}
 
       {isLoading && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/40 backdrop-blur-sm">
-          <span className="text-sm text-muted-foreground">Loading market data…</span>
+        <div className="absolute inset-0 z-20 flex flex-col gap-2 bg-background/60 p-6 backdrop-blur-sm transition-smooth">
+          <div className="skeleton h-6 w-40 rounded-md" />
+          <div className="mt-auto flex items-end gap-1.5">
+            {Array.from({ length: 24 }).map((_, i) => (
+              <div
+                key={i}
+                className="skeleton flex-1 rounded-sm"
+                style={{ height: `${20 + ((i * 37) % 60)}%` }}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -33,6 +33,8 @@ export interface MarketData {
   error: string | null;
   isLoading: boolean;
   refresh: () => void;
+  /** Wall-clock ms timestamp of the last successful price update (poll or full reload). */
+  lastUpdateAt: number | null;
 }
 
 // ─── Module-level cache ──────────────────────────────────────────────────────
@@ -46,7 +48,9 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 30_000;
-const PRICE_POLL_MS = 15_000;
+// Fastest safe poll rate on Twelve Data's free plan (8 req/min ≈ 7.5s/req).
+// Exported so the UI countdown ("next update in Xs") stays perfectly in sync.
+export const PRICE_POLL_MS = 8_000;
 
 function cacheKey(symbol: string, tf: string) {
   return `${symbol}|${tf}`;
@@ -61,7 +65,7 @@ function applyLivePrice(base: Candle[], price: number): Candle[] {
   if (!base.length) return base;
   const last = base[base.length - 1];
   const newHigh = Math.max(last.high, price);
-  const newLow  = Math.min(last.low,  price);
+  const newLow = Math.min(last.low, price);
   if (price === last.close && newHigh === last.high && newLow === last.low) {
     return base; // nothing changed
   }
@@ -100,17 +104,12 @@ export function useMarketData(
   const tdSymbol = pair.twelvedata;
 
   const initEntry = cache.get(cacheKey(symbol, timeframeId));
-  const [baseCandles, setBaseCandles] = useState<Candle[]>(
-    initEntry?.baseCandles ?? [],
-  );
+  const [baseCandles, setBaseCandles] = useState<Candle[]>(initEntry?.baseCandles ?? []);
   const [price, setPrice] = useState<number | null>(initEntry?.price ?? null);
-  const [prevClose, setPrevClose] = useState<number | null>(
-    initEntry?.prevClose ?? null,
-  );
-  const [status, setStatus] = useState<FeedStatus>(
-    initEntry ? "live" : "connecting",
-  );
+  const [prevClose, setPrevClose] = useState<number | null>(initEntry?.prevClose ?? null);
+  const [status, setStatus] = useState<FeedStatus>(initEntry ? "live" : "connecting");
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdateAt, setLastUpdateAt] = useState<number | null>(initEntry?.at ?? null);
 
   const reqId = useRef(0);
   // Keep a stable ref to the current price so the epoch handler can read it
@@ -139,6 +138,7 @@ export function useMarketData(
           setPrevClose(res.prevClose);
           setStatus("live");
           setError(null);
+          setLastUpdateAt(Date.now());
         } else if (!isBackground) {
           setStatus("error");
           setError(res.error);
@@ -151,7 +151,7 @@ export function useMarketData(
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     [symbol, timeframeId, tdSymbol],
   );
 
@@ -162,6 +162,7 @@ export function useMarketData(
       if (res.ok) {
         setPrice(res.price);
         priceRef.current = res.price;
+        setLastUpdateAt(Date.now());
         const entry = cache.get(cacheKey(symbol, timeframeId));
         if (entry) {
           cache.set(cacheKey(symbol, timeframeId), {
@@ -228,5 +229,6 @@ export function useMarketData(
     error,
     isLoading: status === "connecting" && baseCandles.length === 0,
     refresh,
+    lastUpdateAt,
   };
 }

@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  CandlestickChart,
   Layers,
+  LineChart,
   Loader2,
   Pencil,
   Pin,
@@ -19,9 +21,10 @@ import {
   X,
 } from "lucide-react";
 
-import { TradingChart } from "@/components/TradingChart";
-import { useMarketData, type FeedStatus } from "@/hooks/use-market-data";
+import { TradingChart, type ChartType } from "@/components/TradingChart";
+import { useMarketData, PRICE_POLL_MS, type FeedStatus } from "@/hooks/use-market-data";
 import { useCandleTimer } from "@/hooks/use-candle-timer";
+import { usePollCountdown } from "@/hooks/use-poll-countdown";
 import { useTimeframeBar } from "@/hooks/use-timeframes";
 import { FOREX_PAIRS, formatPrice, getPair } from "@/lib/forex";
 import {
@@ -61,6 +64,7 @@ function Terminal() {
   const [enabled, setEnabled] = useState<Set<ToolId>>(() => new Set(ALL_TOOLS));
   const [query, setQuery] = useState("");
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [chartType, setChartType] = useState<ChartType>("candlestick");
 
   const bar = useTimeframeBar();
   const { formattedTime, epoch } = useCandleTimer(timeframeId);
@@ -74,8 +78,9 @@ function Terminal() {
   const [editInput, setEditInput] = useState("");
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { candles, price, prevClose, status, error, isLoading, refresh } =
+  const { candles, price, prevClose, status, error, isLoading, refresh, lastUpdateAt } =
     useMarketData(symbol, timeframeId, epoch);
+  const nextUpdateIn = usePollCountdown(lastUpdateAt, PRICE_POLL_MS);
 
   const pair = getPair(symbol);
   const tf = getTimeframe(timeframeId);
@@ -89,12 +94,25 @@ function Terminal() {
     livePrice != null && prevClose != null && prevClose !== 0
       ? ((livePrice - prevClose) / prevClose) * 100
       : 0;
+
+  // ── Price flash: briefly color the price green/red on every tick ────────
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const prevPriceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (livePrice == null) return;
+    const prev = prevPriceRef.current;
+    if (prev != null && livePrice !== prev) {
+      setFlash(livePrice > prev ? "up" : "down");
+      const t = setTimeout(() => setFlash(null), 700);
+      prevPriceRef.current = livePrice;
+      return () => clearTimeout(t);
+    }
+    prevPriceRef.current = livePrice;
+  }, [livePrice]);
   const sessionHigh = candles.length
     ? candles.reduce((m, c) => Math.max(m, c.high), -Infinity)
     : NaN;
-  const sessionLow = candles.length
-    ? candles.reduce((m, c) => Math.min(m, c.low), Infinity)
-    : NaN;
+  const sessionLow = candles.length ? candles.reduce((m, c) => Math.min(m, c.low), Infinity) : NaN;
 
   const toggle = (id: ToolId) =>
     setEnabled((prev) => {
@@ -251,9 +269,7 @@ function Terminal() {
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{p.symbol}</div>
                     <div className="truncate text-[11px] text-muted-foreground">
-                      {active && livePrice != null
-                        ? formatPrice(livePrice, p.digits)
-                        : p.name}
+                      {active && livePrice != null ? formatPrice(livePrice, p.digits) : p.name}
                     </div>
                   </div>
                   {active && (
@@ -295,7 +311,14 @@ function Terminal() {
 
             {livePrice != null && (
               <div className="flex items-baseline gap-2">
-                <span className="tabular text-lg font-semibold">
+                <span
+                  key={flash}
+                  className={cn(
+                    "tabular text-lg font-semibold transition-smooth",
+                    flash === "up" && "price-flash-up",
+                    flash === "down" && "price-flash-down",
+                  )}
+                >
                   {formatPrice(livePrice, pair.digits)}
                 </span>
                 <span
@@ -307,14 +330,49 @@ function Terminal() {
                   {change >= 0 ? "+" : ""}
                   {change.toFixed(2)}%
                 </span>
+                <span
+                  title="Time until the next live price update"
+                  className="tabular flex items-center gap-1 rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                >
+                  next update in {nextUpdateIn}s
+                </span>
               </div>
             )}
 
             <Stat label="High" value={formatPrice(sessionHigh, pair.digits)} />
             <Stat label="Low" value={formatPrice(sessionLow, pair.digits)} />
 
-            {/* ── Timeframe bar ───────────────────────────────────────── */}
-            <div className="ml-auto flex items-center gap-1">
+            {/* ── Chart type + timeframe bar ──────────────────────────── */}
+            <div className="ml-auto flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5 rounded-md border border-border bg-secondary/40 p-0.5">
+                <button
+                  onClick={() => setChartType("candlestick")}
+                  aria-label="Candlestick chart"
+                  aria-pressed={chartType === "candlestick"}
+                  className={cn(
+                    "flex items-center gap-1 rounded px-2 py-1 text-[11px] font-semibold transition-colors",
+                    chartType === "candlestick"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <CandlestickChart className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => setChartType("line")}
+                  aria-label="Line chart"
+                  aria-pressed={chartType === "line"}
+                  className={cn(
+                    "flex items-center gap-1 rounded px-2 py-1 text-[11px] font-semibold transition-colors",
+                    chartType === "line"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <LineChart className="h-3 w-3" />
+                </button>
+              </div>
+
               <div className="scroll-thin flex max-w-[60vw] items-center gap-0.5 overflow-x-auto rounded-md border border-border bg-secondary/40 p-0.5 lg:max-w-none">
                 {bar.items.map((t) => {
                   const isActive = t.id === timeframeId;
@@ -410,9 +468,7 @@ function Terminal() {
                           Add
                         </button>
                       </form>
-                      {customError && (
-                        <p className="mt-1 text-[10px] text-bear">{customError}</p>
-                      )}
+                      {customError && <p className="mt-1 text-[10px] text-bear">{customError}</p>}
                       <p className="mt-1 text-[10px] text-muted-foreground/60">
                         Units: <code>m h d w mo</code> · long-press a chip to manage it
                       </p>
@@ -431,6 +487,7 @@ function Terminal() {
               digits={pair.digits}
               resetKey={`${symbol}|${timeframeId}`}
               isLoading={isLoading}
+              chartType={chartType}
             />
           </div>
         </main>
@@ -469,9 +526,7 @@ function Terminal() {
                         onClick={() => toggle(t.id)}
                         className={cn(
                           "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
-                          on
-                            ? "border-border bg-secondary/40"
-                            : "border-border/50 bg-transparent",
+                          on ? "border-border bg-secondary/40" : "border-border/50 bg-transparent",
                         )}
                       >
                         <span
@@ -694,10 +749,7 @@ function MenuItem({
   );
 }
 
-const FEED_META: Record<
-  FeedStatus,
-  { label: string; dot: string; pulse: boolean }
-> = {
+const FEED_META: Record<FeedStatus, { label: string; dot: string; pulse: boolean }> = {
   live: { label: "Live", dot: "bg-bull", pulse: true },
   connecting: { label: "Connecting", dot: "bg-primary", pulse: true },
   error: { label: "Error", dot: "bg-bear", pulse: false },
@@ -723,9 +775,7 @@ function FeedBadge({ status, onRetry }: { status: FeedStatus; onRetry: () => voi
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="hidden flex-col sm:flex">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
       <span className="tabular text-sm font-medium">{value}</span>
     </div>
   );

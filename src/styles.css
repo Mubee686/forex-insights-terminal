@@ -162,3 +162,63 @@
     box-shadow: 0 0 0 0 transparent;
   }
 }
+
+/* Price ticker: brief color flash + pulse on every live update */
+@utility price-flash-up {
+  animation: flashUp 0.7s ease-out;
+}
+@utility price-flash-down {
+  animation: flashDown 0.7s ease-out;
+}
+
+@keyframes flashUp {
+  0% {
+    color: var(--bull);
+    transform: scale(1.06);
+  }
+  100% {
+    color: inherit;
+    transform: scale(1);
+  }
+}
+@keyframes flashDown {
+  0% {
+    color: var(--bear);
+    transform: scale(1.06);
+  }
+  100% {
+    color: inherit;
+    transform: scale(1);
+  }
+}
+
+/* Skeleton shimmer for loading states */
+@utility skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--secondary) 70%, transparent);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--foreground) 8%, transparent),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Generic smooth transitions for interactive UI state changes */
+@utility transition-smooth {
+  transition: all 0.3s ease;
+}
