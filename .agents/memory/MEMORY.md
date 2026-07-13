@@ -1,0 +1,1 @@
+- [Finnhub forex integration](finnhub-forex-provider.md) — free tier has no REST forex candles (403); WS ticks work; use `ws` package, not global `WebSocket`, in this Vite/Bun SSR runtime.

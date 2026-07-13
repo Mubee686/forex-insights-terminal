@@ -22,9 +22,8 @@ import {
 } from "lucide-react";
 
 import { TradingChart, type ChartType } from "@/components/TradingChart";
-import { useMarketData, PRICE_POLL_MS, type FeedStatus } from "@/hooks/use-market-data";
+import { useMarketData, type FeedStatus } from "@/hooks/use-market-data";
 import { useCandleTimer } from "@/hooks/use-candle-timer";
-import { usePollCountdown } from "@/hooks/use-poll-countdown";
 import { useTimeframeBar } from "@/hooks/use-timeframes";
 import { FOREX_PAIRS, formatPrice, getPair } from "@/lib/forex";
 import {
@@ -78,9 +77,11 @@ function Terminal() {
   const [editInput, setEditInput] = useState("");
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { candles, price, prevClose, status, error, isLoading, refresh, lastUpdateAt } =
-    useMarketData(symbol, timeframeId, epoch);
-  const nextUpdateIn = usePollCountdown(lastUpdateAt, PRICE_POLL_MS);
+  const { candles, price, prevClose, status, error, isLoading, refresh } = useMarketData(
+    symbol,
+    timeframeId,
+    epoch,
+  );
 
   const pair = getPair(symbol);
   const tf = getTimeframe(timeframeId);
@@ -329,12 +330,6 @@ function Terminal() {
                 >
                   {change >= 0 ? "+" : ""}
                   {change.toFixed(2)}%
-                </span>
-                <span
-                  title="Time until the next live price update"
-                  className="tabular flex items-center gap-1 rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
-                >
-                  next update in {nextUpdateIn}s
                 </span>
               </div>
             )}
@@ -752,6 +747,7 @@ function MenuItem({
 const FEED_META: Record<FeedStatus, { label: string; dot: string; pulse: boolean }> = {
   live: { label: "Live", dot: "bg-bull", pulse: true },
   connecting: { label: "Connecting", dot: "bg-primary", pulse: true },
+  partial: { label: "Live (no history)", dot: "bg-amber-500", pulse: true },
   error: { label: "Error", dot: "bg-bear", pulse: false },
 };
 
@@ -759,7 +755,12 @@ function FeedBadge({ status, onRetry }: { status: FeedStatus; onRetry: () => voi
   const meta = FEED_META[status];
   return (
     <button
-      onClick={status === "error" ? onRetry : undefined}
+      onClick={status === "error" || status === "partial" ? onRetry : undefined}
+      title={
+        status === "partial"
+          ? "Live ticks are streaming, but historical bars need a Finnhub plan upgrade"
+          : undefined
+      }
       className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-2.5 py-1"
     >
       {status === "connecting" ? (

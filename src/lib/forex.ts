@@ -1,8 +1,13 @@
 /**
  * Instruments and shared candle types.
  *
- * All price data comes from Twelve Data API via the server
- * function in `market.functions.ts`.  There is no synthetic/simulated data.
+ * This file is provider-agnostic and client-safe — it never imports a
+ * specific market-data vendor.  Provider-specific symbol resolution lives
+ * in `src/lib/providers/*.server.ts`. To switch vendors, write a new
+ * adapter under `src/lib/providers/` and point `market.functions.ts` /
+ * `price-stream` at it — nothing here needs to change.
+ *
+ * There is no synthetic/simulated data anywhere in this pipeline.
  */
 
 export interface Candle {
@@ -14,24 +19,23 @@ export interface Candle {
 }
 
 export interface ForexPair {
-  symbol: string;     // display symbol, e.g. "EUR/USD"
-  twelvedata: string; // Twelve Data symbol, e.g. "EUR/USD"
+  symbol: string; // display symbol, e.g. "EUR/USD" — also the provider-lookup key
   name: string;
   digits: number;
 }
 
 export const FOREX_PAIRS: ForexPair[] = [
-  { symbol: "EUR/USD", twelvedata: "EUR/USD", name: "Euro / US Dollar",    digits: 5 },
-  { symbol: "GBP/USD", twelvedata: "GBP/USD", name: "Pound / US Dollar",   digits: 5 },
-  { symbol: "USD/JPY", twelvedata: "USD/JPY", name: "US Dollar / Yen",     digits: 3 },
-  { symbol: "AUD/USD", twelvedata: "AUD/USD", name: "Aussie / US Dollar",  digits: 5 },
-  { symbol: "USD/CAD", twelvedata: "USD/CAD", name: "US Dollar / Loonie",  digits: 5 },
-  { symbol: "USD/CHF", twelvedata: "USD/CHF", name: "US Dollar / Franc",   digits: 5 },
-  { symbol: "NZD/USD", twelvedata: "NZD/USD", name: "Kiwi / US Dollar",    digits: 5 },
-  { symbol: "EUR/GBP", twelvedata: "EUR/GBP", name: "Euro / Pound",        digits: 5 },
-  { symbol: "EUR/JPY", twelvedata: "EUR/JPY", name: "Euro / Yen",          digits: 3 },
-  { symbol: "GBP/JPY", twelvedata: "GBP/JPY", name: "Pound / Yen",         digits: 3 },
-  { symbol: "XAU/USD", twelvedata: "XAU/USD", name: "Gold / US Dollar",    digits: 2 },
+  { symbol: "EUR/USD", name: "Euro / US Dollar", digits: 5 },
+  { symbol: "GBP/USD", name: "Pound / US Dollar", digits: 5 },
+  { symbol: "USD/JPY", name: "US Dollar / Yen", digits: 3 },
+  { symbol: "AUD/USD", name: "Aussie / US Dollar", digits: 5 },
+  { symbol: "USD/CAD", name: "US Dollar / Loonie", digits: 5 },
+  { symbol: "USD/CHF", name: "US Dollar / Franc", digits: 5 },
+  { symbol: "NZD/USD", name: "Kiwi / US Dollar", digits: 5 },
+  { symbol: "EUR/GBP", name: "Euro / Pound", digits: 5 },
+  { symbol: "EUR/JPY", name: "Euro / Yen", digits: 3 },
+  { symbol: "GBP/JPY", name: "Pound / Yen", digits: 3 },
+  { symbol: "XAU/USD", name: "Gold / US Dollar", digits: 2 },
 ];
 
 export function getPair(symbol: string): ForexPair {

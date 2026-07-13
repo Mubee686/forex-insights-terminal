@@ -5,9 +5,10 @@
  *   unit:  m = minute, h = hour, d = day, w = week, mo = month
  *   id:    `${n}${unit}`   e.g. "1m", "15m", "4h", "1d", "1w", "1mo"
  *
- * Every timeframe is derived from Twelve Data API.  Native intervals are
- * fetched directly; non-native intervals are aggregated from a finer
- * native interval so all timeframes share the same data source.
+ * This model is provider-agnostic.  Every timeframe is built from the
+ * finest native resolution the active provider offers; non-native
+ * intervals are aggregated client/server-side so all timeframes share the
+ * same underlying feed regardless of vendor.
  */
 
 export type TfUnit = "m" | "h" | "d" | "w" | "mo";
@@ -30,11 +31,16 @@ const UNIT_SECONDS: Record<TfUnit, number> = {
 
 function unitLabel(n: number, unit: TfUnit): string {
   switch (unit) {
-    case "m":  return `${n}m`;
-    case "h":  return `${n}H`;
-    case "d":  return `${n}D`;
-    case "w":  return `${n}W`;
-    case "mo": return `${n}MN`;
+    case "m":
+      return `${n}m`;
+    case "h":
+      return `${n}H`;
+    case "d":
+      return `${n}D`;
+    case "w":
+      return `${n}W`;
+    case "mo":
+      return `${n}MN`;
   }
 }
 
@@ -61,106 +67,75 @@ export function parseTimeframe(raw: string): Timeframe | null {
 }
 
 /** Canonical ids of the default timeframe bar. */
-export const DEFAULT_TIMEFRAME_IDS = [
-  "1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1mo",
-];
+export const DEFAULT_TIMEFRAME_IDS = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1mo"];
 
 /** Suggested quick-pick custom intervals shown in the picker. */
 export const QUICK_TIMEFRAME_IDS = [
-  "2m", "3m", "10m", "20m", "45m", "2h", "3h", "8h", "12h", "2d", "3d",
+  "2m",
+  "3m",
+  "10m",
+  "20m",
+  "45m",
+  "2h",
+  "3h",
+  "8h",
+  "12h",
+  "2d",
+  "3d",
 ];
 
 export function getTimeframe(id: string): Timeframe {
   return parseTimeframe(id) ?? parseTimeframe("15m")!;
 }
 
-// ─── Twelve Data interval mapping ───────────────────────────────────────────
+// ─── Finnhub resolution mapping ─────────────────────────────────────────────
+// This is the ONLY place that knows about Finnhub's specific resolution
+// codes. Swapping providers means adding a sibling `<vendor>Plan()` function
+// here (or in the vendor's own adapter) — nothing else in the app changes.
 
-export interface TwelvedataPlan {
-  /** Twelve Data interval string (e.g. "15min", "4h", "1day"). */
-  interval: string;
-  /** Number of candles to request. */
-  outputsize: number;
-  /** Aggregation bucket in seconds — 0 means use the native interval as-is. */
+export interface FinnhubPlan {
+  /** Finnhub resolution code: "1" "5" "15" "30" "60" "D" "W" "M". */
+  resolution: string;
+  /** Aggregation bucket in seconds — 0 means use the native resolution as-is. */
   aggregateSeconds: number;
+  /** How far back (seconds) to request from the REST candle endpoint. */
+  lookbackSeconds: number;
 }
 
-/** Native Twelve Data intervals. */
-const TD_NATIVE: Record<string, string> = {
-  "1m":  "1min",
-  "5m":  "5min",
-  "15m": "15min",
-  "30m": "30min",
-  "45m": "45min",
-  "1h":  "1h",
-  "2h":  "2h",
-  "4h":  "4h",
-  "8h":  "8h",
-  "1d":  "1day",
-  "1w":  "1week",
-  "1mo": "1month",
+const FINNHUB_NATIVE: Record<string, string> = {
+  "1m": "1",
+  "5m": "5",
+  "15m": "15",
+  "30m": "30",
+  "1h": "60",
+  "1d": "D",
+  "1w": "W",
+  "1mo": "M",
 };
 
+const TARGET_BARS = 1000;
+const MAX_LOOKBACK_SECONDS = 10 * 365 * 86_400; // sanity ceiling for exotic custom TFs
+
 /**
- * Return the Twelve Data fetch plan for a timeframe id.
- * Non-native intervals aggregate from the finest suitable native interval.
+ * Return the Finnhub fetch plan for a timeframe id.
+ * Non-native intervals aggregate from the finest suitable native resolution
+ * Finnhub supports (Finnhub has no native 4h/2d/etc. resolution).
  */
-export function twelvedataPlan(id: string): TwelvedataPlan {
+export function finnhubPlan(id: string): FinnhubPlan {
   const tf = getTimeframe(id);
-  const native = TD_NATIVE[tf.id];
+  const native = FINNHUB_NATIVE[tf.id];
+  const lookbackSeconds = Math.min(TARGET_BARS * tf.seconds, MAX_LOOKBACK_SECONDS);
 
   if (native) {
-    const outputsize =
-      tf.unit === "mo" ? 100
-      : tf.unit === "w" ? 200
-      : 500;
-    return { interval: native, outputsize, aggregateSeconds: 0 };
+    return { resolution: native, aggregateSeconds: 0, lookbackSeconds };
   }
 
-  // Minute-based non-native: aggregate from 1min
-  if (tf.unit === "m") {
-    return {
-      interval: "1min",
-      outputsize: Math.min(500 * tf.count, 5000),
-      aggregateSeconds: tf.seconds,
-    };
-  }
+  if (tf.unit === "m") return { resolution: "1", aggregateSeconds: tf.seconds, lookbackSeconds };
+  if (tf.unit === "h") return { resolution: "60", aggregateSeconds: tf.seconds, lookbackSeconds };
+  if (tf.unit === "d") return { resolution: "D", aggregateSeconds: tf.seconds, lookbackSeconds };
 
-  // Hour-based non-native
-  if (tf.unit === "h") {
-    // Pick finest native base that divides evenly, or fall back to 1h
-    if (tf.count % 4 === 0) {
-      return {
-        interval: "4h",
-        outputsize: Math.min(500 * Math.ceil(tf.count / 4), 5000),
-        aggregateSeconds: tf.seconds,
-      };
-    }
-    if (tf.count % 2 === 0) {
-      return {
-        interval: "2h",
-        outputsize: Math.min(500 * Math.ceil(tf.count / 2), 5000),
-        aggregateSeconds: tf.seconds,
-      };
-    }
-    return {
-      interval: "1h",
-      outputsize: Math.min(500 * tf.count, 5000),
-      aggregateSeconds: tf.seconds,
-    };
-  }
-
-  // Day-based non-native: aggregate from 1day
-  if (tf.unit === "d") {
-    return {
-      interval: "1day",
-      outputsize: Math.min(500 * tf.count, 5000),
-      aggregateSeconds: tf.count * 86_400,
-    };
-  }
-
-  // Fallback for exotic week/month combos
-  return { interval: "1day", outputsize: 5000, aggregateSeconds: tf.seconds };
+  // Exotic week/month combos: aggregate from daily bars.
+  return { resolution: "D", aggregateSeconds: tf.seconds, lookbackSeconds };
 }
 
 // ─── Candle close countdown ──────────────────────────────────────────────────
@@ -184,18 +159,13 @@ export function candleSecondsLeft(timeframeId: string): number {
     // Forex week candles close at Monday 00:00 UTC
     const d = new Date(now);
     const dow = d.getUTCDay(); // 0=Sun … 6=Sat
-    const daysUntilMon = ((8 - dow) % 7) || 7;
-    const nextClose = Date.UTC(
-      d.getUTCFullYear(),
-      d.getUTCMonth(),
-      d.getUTCDate() + daysUntilMon,
-    );
+    const daysUntilMon = (8 - dow) % 7 || 7;
+    const nextClose = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + daysUntilMon);
     return Math.max(0, Math.floor((nextClose - now) / 1000));
   }
 
   // For d/h/m: align candle boundaries to UTC epoch multiples
-  const periodSecs =
-    tf.unit === "d" ? tf.count * 86_400 : tf.seconds;
+  const periodSecs = tf.unit === "d" ? tf.count * 86_400 : tf.seconds;
   const nextClose = (Math.floor(nowSec / periodSecs) + 1) * periodSecs;
   return Math.max(0, nextClose - nowSec);
 }
@@ -219,17 +189,10 @@ export function candleOpenTime(timeframeId: string): number {
     const d = new Date(now);
     const dow = d.getUTCDay(); // 0=Sun … 6=Sat
     const daysFromMon = (dow + 6) % 7; // 0 on Mon, 6 on Sun
-    return (
-      Date.UTC(
-        d.getUTCFullYear(),
-        d.getUTCMonth(),
-        d.getUTCDate() - daysFromMon,
-      ) / 1000
-    );
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - daysFromMon) / 1000;
   }
 
-  const periodSecs =
-    tf.unit === "d" ? tf.count * 86_400 : tf.seconds;
+  const periodSecs = tf.unit === "d" ? tf.count * 86_400 : tf.seconds;
   return Math.floor(nowSec / periodSecs) * periodSecs;
 }
 
