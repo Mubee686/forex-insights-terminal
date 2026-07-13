@@ -156,6 +156,7 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     if (!container) return;
 
     const chart = createChart(container, {
+      localization: { locale: "en-US" },
       layout: {
         background: { color: C.bg },
         textColor: C.text,
