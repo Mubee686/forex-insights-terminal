@@ -223,9 +223,8 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     chart.resize(container.clientWidth, container.clientHeight);
 
     // Redraw overlay on any pan/zoom
-    const unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
-      drawOverlay.current();
-    });
+    const onRange = () => drawOverlay.current();
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onRange);
 
     // Crosshair OHLC legend
     chart.subscribeCrosshairMove((param) => {
@@ -253,7 +252,7 @@ export function TradingChart({ candles, zones, digits, resetKey, isLoading }: Pr
     }
 
     return () => {
-      unsub?.();
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
       ro.disconnect();
       chart.remove();
       chartRef.current = null;
