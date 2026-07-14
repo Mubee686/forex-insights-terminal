@@ -138,6 +138,71 @@ export function finnhubPlan(id: string): FinnhubPlan {
   return { resolution: "D", aggregateSeconds: tf.seconds, lookbackSeconds };
 }
 
+// ─── Twelve Data resolution mapping ─────────────────────────────────────────
+// Twelve Data exposes richer native intervals than Finnhub. Anything without
+// a native interval is aggregated from the finest suitable base interval.
+
+export interface TwelveDataPlan {
+  /** Twelve Data interval code: "1min" "5min" ... "1h" "4h" "1day" "1week" "1month". */
+  interval: string;
+  /** Aggregation bucket in seconds — 0 means use the native interval as-is. */
+  aggregateSeconds: number;
+  /** Number of base bars to request from /time_series (max 5000). */
+  outputsize: number;
+}
+
+const TWELVE_NATIVE: Record<string, string> = {
+  "1m": "1min",
+  "5m": "5min",
+  "15m": "15min",
+  "30m": "30min",
+  "45m": "45min",
+  "1h": "1h",
+  "2h": "2h",
+  "4h": "4h",
+  "1d": "1day",
+  "1w": "1week",
+  "1mo": "1month",
+};
+
+const TWELVE_MAX_OUTPUT = 5000;
+
+/**
+ * Return the Twelve Data fetch plan for a timeframe id. Native intervals are
+ * requested directly; non-native intervals aggregate from the finest base
+ * interval Twelve Data supports for that unit.
+ */
+export function twelveDataPlan(id: string): TwelveDataPlan {
+  const tf = getTimeframe(id);
+  const native = TWELVE_NATIVE[tf.id];
+
+  if (native) {
+    return {
+      interval: native,
+      aggregateSeconds: 0,
+      outputsize: Math.min(TARGET_BARS, TWELVE_MAX_OUTPUT),
+    };
+  }
+
+  // Non-native: aggregate from a base interval, requesting enough base bars.
+  let baseInterval = "1min";
+  let baseSeconds = 60;
+  if (tf.unit === "h") {
+    baseInterval = "1h";
+    baseSeconds = 3_600;
+  } else if (tf.unit === "d" || tf.unit === "w" || tf.unit === "mo") {
+    baseInterval = "1day";
+    baseSeconds = 86_400;
+  }
+
+  const baseBarsNeeded = Math.ceil((TARGET_BARS * tf.seconds) / baseSeconds);
+  return {
+    interval: baseInterval,
+    aggregateSeconds: tf.seconds,
+    outputsize: Math.min(baseBarsNeeded, TWELVE_MAX_OUTPUT),
+  };
+}
+
 // ─── Candle close countdown ──────────────────────────────────────────────────
 
 /**
