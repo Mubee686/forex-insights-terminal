@@ -21,11 +21,12 @@ export const Route = createFileRoute("/api/price-stream")({
           return new Response("Missing symbol", { status: 400 });
         }
 
-        const { resolveSymbol } = await import("@/lib/providers/finnhub.server");
-        const { subscribeTicks, getLastTick } =
-          await import("@/lib/providers/finnhub-stream.server");
+        const { resolveSymbol } = await import("@/lib/providers/twelvedata.server");
+        const { subscribeTicks, getLastTick } = await import(
+          "@/lib/providers/twelvedata-stream.server"
+        );
 
-        const finnhubSymbol = resolveSymbol(symbol);
+        const resolvedSymbol = resolveSymbol(symbol);
         const encoder = new TextEncoder();
 
         let heartbeat: ReturnType<typeof setInterval> | undefined;
