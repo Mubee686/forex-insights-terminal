@@ -40,10 +40,10 @@ export const Route = createFileRoute("/api/price-stream")({
 
             // Seed the client instantly with the last known price, if any,
             // instead of waiting for the next tick.
-            const last = getLastTick(finnhubSymbol);
+            const last = getLastTick(resolvedSymbol);
             if (last) send({ price: last.price, timestamp: last.timestamp });
 
-            unsubscribe = subscribeTicks(finnhubSymbol, (tick) => {
+            unsubscribe = subscribeTicks(resolvedSymbol, (tick) => {
               send({ price: tick.price, timestamp: tick.timestamp });
             });
 
