@@ -80,6 +80,11 @@
       },
     },
   },
+  "overrides": {
+    "@tanstack/router-core": "1.171.13",
+    "@tanstack/router-generator": "1.167.17",
+    "@tanstack/router-plugin": "1.168.18",
+  },
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
 
