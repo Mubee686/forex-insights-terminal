@@ -2,11 +2,10 @@
  * SSE endpoint: GET /api/price-stream?symbol=EUR/USD
  *
  * Pushes live price ticks to the browser as they arrive from the upstream
- * Finnhub WebSocket — no client-side polling, no page refresh. The browser
+ * Twelve Data feed — no client-side polling, no page refresh. The browser
  * subscribes via the native `EventSource`, which auto-reconnects on its own
- * if the HTTP connection drops; the server side also keeps a single
- * persistent upstream connection alive independently (see
- * finnhub-stream.server.ts) and reconnects it on failure.
+ * if the HTTP connection drops; the server side keeps a single shared REST
+ * poll loop per symbol alive independently (see twelvedata-stream.server.ts).
  */
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
