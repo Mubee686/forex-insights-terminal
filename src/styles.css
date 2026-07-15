@@ -222,3 +222,60 @@
 @utility transition-smooth {
   transition: all 0.3s ease;
 }
+
+/* Auth pages: entrance + interactions */
+@utility auth-fade-up {
+  animation: authFadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes authFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@utility auth-tab-switch {
+  animation: authTabSwitch 0.35s ease both;
+}
+@keyframes authTabSwitch {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@utility field-shake {
+  animation: fieldShake 0.4s ease;
+}
+@keyframes fieldShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+@utility btn-glow {
+  transition: transform 0.15s ease, box-shadow 0.25s ease, background-color 0.2s ease;
+  &:hover { transform: translateY(-1px); box-shadow: 0 10px 30px -12px rgba(14, 165, 233, 0.55); }
+  &:active { transform: translateY(0) scale(0.98); }
+}
+
+/* Blue-wave background for auth pages */
+@utility auth-bg {
+  position: relative;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(56, 189, 248, 0.35), transparent 60%),
+    radial-gradient(1000px 500px at 110% 10%, rgba(59, 130, 246, 0.30), transparent 60%),
+    radial-gradient(800px 500px at 50% 120%, rgba(125, 211, 252, 0.40), transparent 60%),
+    linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 55%, #dbeafe 100%);
+  overflow: hidden;
+}
+@utility auth-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.55;
+  animation: blobFloat 14s ease-in-out infinite;
+}
+@keyframes blobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.06); }
+}
+
