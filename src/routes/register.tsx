@@ -7,6 +7,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, PrimaryButton, fieldClasses } from "@/components/auth/AuthShell";
 import { notifyAdmin } from "@/lib/auth-notifications.functions";
+import { confirmUserEmail } from "@/lib/auth-admin.functions";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -57,9 +58,12 @@ function RegisterPage() {
     }
     setErrors({});
     setLoading(true);
+    // Normalize the email the same way on register and login so a user
+    // can never be "not found" purely because of casing or stray spaces.
+    const normalizedEmail = parsed.data.email.trim().toLowerCase();
     try {
-      const { error } = await supabase.auth.signUp({
-        email: parsed.data.email,
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
         password: parsed.data.password,
         options: {
           emailRedirectTo: window.location.origin + "/login",
@@ -67,15 +71,24 @@ function RegisterPage() {
         },
       });
       if (error) throw error;
-      // Notify admin gmail
+
+      // Supabase requires email confirmation by default, which would block
+      // login until the confirmation link is clicked. Confirm immediately
+      // server-side so the account is usable right away.
+      if (data.user?.id) {
+        confirmUserEmail({ data: { userId: data.user.id } }).catch(() => {});
+      }
+
+      // Notify admin gmail (fire and forget — never blocks the UX)
       notifyAdmin({
         data: {
-          event: "register",
-          email: parsed.data.email,
+          email: normalizedEmail,
           fullName: parsed.data.fullName,
         },
       }).catch(() => {});
+
       toast.success("Account created! Please log in.", {
+        className: "toast-bounce-in",
         style: { background: "#e0f2fe", color: "#075985", border: "1px solid #7dd3fc" },
       });
       navigate({ to: "/login" });

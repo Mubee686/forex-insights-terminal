@@ -6,7 +6,6 @@ import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, PrimaryButton, fieldClasses } from "@/components/auth/AuthShell";
-import { notifyAdmin } from "@/lib/auth-notifications.functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -33,6 +32,8 @@ function LoginPage() {
   const [show, setShow] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
+  // Drives the fade-out on the form right before we hand off to the dashboard.
+  const [success, setSuccess] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,28 +48,28 @@ function LoginPage() {
     }
     setErrors({});
     setLoading(true);
+    // Normalize the same way registration does, so casing/whitespace can
+    // never cause a false "account not found" mismatch.
+    const normalizedEmail = parsed.data.email.trim().toLowerCase();
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: parsed.data.email,
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
         password: parsed.data.password,
       });
       if (error) throw error;
-      toast.success("Welcome back!", {
+
+      toast.success("Login Successful", {
+        className: "toast-bounce-in",
         style: { background: "#e0f2fe", color: "#075985", border: "1px solid #7dd3fc" },
       });
-      // Fire and forget admin notification
-      notifyAdmin({
-        data: {
-          event: "login",
-          email: parsed.data.email,
-          fullName: (data.user?.user_metadata?.full_name as string | undefined) ?? undefined,
-        },
-      }).catch(() => {});
-      navigate({ to: "/dashboard" });
+
+      // Soft fade-out on the form, then hand off to the dashboard, which
+      // fades/slides in on its own mount animation.
+      setSuccess(true);
+      setTimeout(() => navigate({ to: "/dashboard" }), 380);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
       toast.error(message);
-    } finally {
       setLoading(false);
     }
   }
@@ -86,7 +87,14 @@ function LoginPage() {
         </>
       }
     >
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
+      <form
+        onSubmit={onSubmit}
+        noValidate
+        className={
+          "space-y-4 transition-all duration-300 ease-out " +
+          (success ? "pointer-events-none translate-y-1 scale-[0.98] opacity-0" : "opacity-100")
+        }
+      >
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Email</label>
           <div className="relative">

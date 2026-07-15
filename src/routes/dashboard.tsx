@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth";
+import { ADMIN_EMAIL, ADMIN_NOTIFICATIONS_CHANNEL } from "@/lib/admin-config";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -19,10 +20,35 @@ export const Route = createFileRoute("/dashboard")({
 function Dashboard() {
   const { session, loading } = useAuthSession();
   const navigate = useNavigate();
+  const isAdmin = session?.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
   }, [loading, session, navigate]);
+
+  // Admin-only: live "new user registered" toast, pushed via Supabase
+  // Realtime the moment someone signs up (see notifyAdmin server function).
+  useEffect(() => {
+    if (!isAdmin) return;
+    const channel = supabase
+      .channel(ADMIN_NOTIFICATIONS_CHANNEL)
+      .on(
+        "broadcast",
+        { event: "new-registration" },
+        ({ payload }: { payload: { email: string; location?: string } }) => {
+          toast.success(`New user registered: ${payload.email}`, {
+            description: payload.location ? `Approx. location: ${payload.location}` : undefined,
+            className: "toast-bounce-in",
+            style: { background: "#e0f2fe", color: "#075985", border: "1px solid #7dd3fc" },
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin]);
 
   async function signOut() {
     await supabase.auth.signOut();
