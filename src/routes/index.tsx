@@ -764,7 +764,7 @@ function FeedBadge({ status, onRetry }: { status: FeedStatus; onRetry: () => voi
       onClick={status === "error" || status === "partial" ? onRetry : undefined}
       title={
         status === "partial"
-          ? "Live ticks are streaming, but historical bars need a Finnhub plan upgrade"
+          ? "Live ticks are streaming, but historical bars couldn't load from Twelve Data"
           : undefined
       }
       className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-2.5 py-1"

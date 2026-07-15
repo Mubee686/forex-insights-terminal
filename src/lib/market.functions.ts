@@ -7,7 +7,7 @@ export type CandleFetchResult =
 
 /**
  * Fetch OHLC candles for a symbol + timeframe from the active market-data
- * provider (currently Finnhub — see src/lib/providers/finnhub.server.ts).
+ * provider (currently Twelve Data — see src/lib/providers/twelvedata.server.ts).
  * The API key is used server-side — the browser never talks to the provider
  * directly. To switch providers, swap the import below; nothing else changes.
  */
@@ -15,7 +15,7 @@ export const fetchCandles = createServerFn({ method: "GET" })
   .validator((d: unknown) => d as { symbol: string; timeframeId: string })
   .handler(async ({ data }): Promise<CandleFetchResult> => {
     try {
-      const { fetchHistory } = await import("./providers/finnhub.server");
+      const { fetchHistory } = await import("./providers/twelvedata.server");
       const series = await fetchHistory(data.symbol, data.timeframeId);
       return {
         ok: true,

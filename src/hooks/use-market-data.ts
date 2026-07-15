@@ -1,12 +1,12 @@
 /**
  * useMarketData — provides live candle data for a pair + timeframe.
  *
- * Data strategy (provider-agnostic; currently backed by Finnhub):
+ * Data strategy (provider-agnostic; currently backed by Twelve Data):
  *  • Full candle fetch — on symbol/TF change, manual refresh, or candle close
  *                        (triggered via `candleCloseEpoch` from useCandleTimer)
  *  • Live price ticks  — pushed continuously over SSE (`/api/price-stream`),
- *                        which itself is fed by a persistent server-side
- *                        Finnhub WebSocket. No polling, no page refresh.
+ *                        which itself is fed by a server-side poll loop
+ *                        against Twelve Data. No client-side polling.
  *
  * Live candle rules (matches TradingView behaviour):
  *  • close  = latest tick price
@@ -164,7 +164,7 @@ export function useMarketData(
     }
   }, [symbol, timeframeId, loadCandles]);
 
-  // ── Live price stream (SSE, pushed from the server's Finnhub WebSocket) ──
+  // ── Live price stream (SSE, pushed from the server's Twelve Data poll loop) ──
   useEffect(() => {
     setStreamConnected(false);
     const es = new EventSource(`/api/price-stream?symbol=${encodeURIComponent(symbol)}`);

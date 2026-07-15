@@ -1,12 +1,12 @@
 /**
  * SSE endpoint: GET /api/price-stream?symbol=EUR/USD
  *
- * Pushes live price ticks to the browser as they arrive from the upstream
- * Finnhub WebSocket — no client-side polling, no page refresh. The browser
+ * Pushes live price ticks to the browser as they arrive from the server's
+ * Twelve Data polling loop — the browser itself never polls. The browser
  * subscribes via the native `EventSource`, which auto-reconnects on its own
- * if the HTTP connection drops; the server side also keeps a single
- * persistent upstream connection alive independently (see
- * finnhub-stream.server.ts) and reconnects it on failure.
+ * if the HTTP connection drops; the server side keeps a single shared poll
+ * timer per symbol independently (see twelvedata-stream.server.ts) no matter
+ * how many browser tabs are watching it.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
@@ -21,11 +21,11 @@ export const Route = createFileRoute("/api/price-stream")({
           return new Response("Missing symbol", { status: 400 });
         }
 
-        const { resolveSymbol } = await import("@/lib/providers/finnhub.server");
+        const { resolveSymbol } = await import("@/lib/providers/twelvedata.server");
         const { subscribeTicks, getLastTick } =
-          await import("@/lib/providers/finnhub-stream.server");
+          await import("@/lib/providers/twelvedata-stream.server");
 
-        const finnhubSymbol = resolveSymbol(symbol);
+        const providerSymbol = resolveSymbol(symbol);
         const encoder = new TextEncoder();
 
         let heartbeat: ReturnType<typeof setInterval> | undefined;
@@ -39,10 +39,10 @@ export const Route = createFileRoute("/api/price-stream")({
 
             // Seed the client instantly with the last known price, if any,
             // instead of waiting for the next tick.
-            const last = getLastTick(finnhubSymbol);
+            const last = getLastTick(providerSymbol);
             if (last) send({ price: last.price, timestamp: last.timestamp });
 
-            unsubscribe = subscribeTicks(finnhubSymbol, (tick) => {
+            unsubscribe = subscribeTicks(providerSymbol, (tick) => {
               send({ price: tick.price, timestamp: tick.timestamp });
             });
 

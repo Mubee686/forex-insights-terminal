@@ -88,54 +88,75 @@ export function getTimeframe(id: string): Timeframe {
   return parseTimeframe(id) ?? parseTimeframe("15m")!;
 }
 
-// ─── Finnhub resolution mapping ─────────────────────────────────────────────
-// This is the ONLY place that knows about Finnhub's specific resolution
+// ─── Twelve Data resolution mapping ──────────────────────────────────────────
+// This is the ONLY place that knows about Twelve Data's specific interval
 // codes. Swapping providers means adding a sibling `<vendor>Plan()` function
 // here (or in the vendor's own adapter) — nothing else in the app changes.
 
-export interface FinnhubPlan {
-  /** Finnhub resolution code: "1" "5" "15" "30" "60" "D" "W" "M". */
-  resolution: string;
-  /** Aggregation bucket in seconds — 0 means use the native resolution as-is. */
+export interface TwelveDataPlan {
+  /** Twelve Data interval code, e.g. "1min" "15min" "1h" "4h" "1day" "1week" "1month". */
+  interval: string;
+  /** Aggregation bucket in seconds — 0 means use the native interval as-is. */
   aggregateSeconds: number;
-  /** How far back (seconds) to request from the REST candle endpoint. */
-  lookbackSeconds: number;
+  /** How many native-resolution bars to request from the REST endpoint. */
+  outputsize: number;
 }
 
-const FINNHUB_NATIVE: Record<string, string> = {
-  "1m": "1",
-  "5m": "5",
-  "15m": "15",
-  "30m": "30",
-  "1h": "60",
-  "1d": "D",
-  "1w": "W",
-  "1mo": "M",
+const TWELVEDATA_NATIVE: Record<string, string> = {
+  "1m": "1min",
+  "5m": "5min",
+  "15m": "15min",
+  "30m": "30min",
+  "45m": "45min",
+  "1h": "1h",
+  "2h": "2h",
+  "4h": "4h",
+  "1d": "1day",
+  "1w": "1week",
+  "1mo": "1month",
+};
+
+const NATIVE_SECONDS: Record<string, number> = {
+  "1min": 60,
+  "5min": 300,
+  "15min": 900,
+  "30min": 1_800,
+  "45min": 2_700,
+  "1h": 3_600,
+  "2h": 7_200,
+  "4h": 14_400,
+  "1day": 86_400,
+  "1week": 604_800,
+  "1month": 2_592_000,
 };
 
 const TARGET_BARS = 1000;
-const MAX_LOOKBACK_SECONDS = 10 * 365 * 86_400; // sanity ceiling for exotic custom TFs
+const MAX_OUTPUTSIZE = 5000; // Twelve Data's REST cap
 
 /**
- * Return the Finnhub fetch plan for a timeframe id.
- * Non-native intervals aggregate from the finest suitable native resolution
- * Finnhub supports (Finnhub has no native 4h/2d/etc. resolution).
+ * Return the Twelve Data fetch plan for a timeframe id.
+ * Non-native intervals aggregate from the finest suitable native interval
+ * Twelve Data supports for that unit.
  */
-export function finnhubPlan(id: string): FinnhubPlan {
+export function twelveDataPlan(id: string): TwelveDataPlan {
   const tf = getTimeframe(id);
-  const native = FINNHUB_NATIVE[tf.id];
-  const lookbackSeconds = Math.min(TARGET_BARS * tf.seconds, MAX_LOOKBACK_SECONDS);
+  const native = TWELVEDATA_NATIVE[tf.id];
 
   if (native) {
-    return { resolution: native, aggregateSeconds: 0, lookbackSeconds };
+    const outputsize = Math.min(MAX_OUTPUTSIZE, TARGET_BARS);
+    return { interval: native, aggregateSeconds: 0, outputsize };
   }
 
-  if (tf.unit === "m") return { resolution: "1", aggregateSeconds: tf.seconds, lookbackSeconds };
-  if (tf.unit === "h") return { resolution: "60", aggregateSeconds: tf.seconds, lookbackSeconds };
-  if (tf.unit === "d") return { resolution: "D", aggregateSeconds: tf.seconds, lookbackSeconds };
+  let interval = "1min";
+  if (tf.unit === "h") interval = "1h";
+  else if (tf.unit === "d" || tf.unit === "w" || tf.unit === "mo") interval = "1day";
 
-  // Exotic week/month combos: aggregate from daily bars.
-  return { resolution: "D", aggregateSeconds: tf.seconds, lookbackSeconds };
+  const nativeSeconds = NATIVE_SECONDS[interval];
+  const outputsize = Math.min(
+    MAX_OUTPUTSIZE,
+    Math.max(1, Math.ceil((TARGET_BARS * tf.seconds) / nativeSeconds)),
+  );
+  return { interval, aggregateSeconds: tf.seconds, outputsize };
 }
 
 // ─── Candle close countdown ──────────────────────────────────────────────────
