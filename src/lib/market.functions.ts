@@ -15,7 +15,7 @@ export const fetchCandles = createServerFn({ method: "GET" })
   .validator((d: unknown) => d as { symbol: string; timeframeId: string })
   .handler(async ({ data }): Promise<CandleFetchResult> => {
     try {
-      const { fetchHistory } = await import("./providers/twelvedata.server");
+      const { fetchHistory } = await import("./providers/finnhub.server");
       const series = await fetchHistory(data.symbol, data.timeframeId);
       return {
         ok: true,
