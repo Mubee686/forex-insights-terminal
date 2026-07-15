@@ -1,1 +1,2 @@
 - [Finnhub forex integration](finnhub-forex-provider.md) — free tier has no REST forex candles (403); WS ticks work; use `ws` package, not global `WebSocket`, in this Vite/Bun SSR runtime.
+- [Twelve Data forex provider](twelvedata-forex-provider.md) — WebSocket push is Pro-plan only; free tier needs REST `/price` polling instead for "live" ticks.
