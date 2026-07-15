@@ -48,6 +48,7 @@ export const notifyAdmin = createServerFn({ method: "POST" })
           sender_domain: senderDomain,
           subject: `${title}: ${data.email}`,
           html,
+          text: `${title}\nName: ${data.fullName ?? "—"}\nEmail: ${data.email}\nDate: ${dateStr}\nTime: ${timeStr}`,
         },
         { apiKey },
       );
