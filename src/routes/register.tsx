@@ -70,8 +70,14 @@ function RegisterPage() {
       });
       if (error) throw error;
 
+      // Immediately confirm the email via the admin API so login works
+      // right away without the user needing to click a confirmation link.
       if (data.user?.id) {
-        confirmUserEmail({ data: { userId: data.user.id } }).catch(() => {});
+        try {
+          await confirmUserEmail({ data: { userId: data.user.id } });
+        } catch (e) {
+          console.warn("[register] email auto-confirm failed:", e);
+        }
       }
 
       notifyAdmin({
