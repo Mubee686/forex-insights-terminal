@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Activity, LogOut, LineChart, Copy, ShieldCheck, Mail } from "lucide-react";
 import { toast } from "sonner";
@@ -30,7 +30,8 @@ function Dashboard() {
   const { session, loading } = useAuthSession();
   const navigate = useNavigate();
   const isAdmin = session?.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-  const fetchMembership = useServerFn(getMyMembership);
+  const _fetchMembership = useServerFn(getMyMembership);
+  const fetchMembership = useCallback(_fetchMembership, []);
 
   const [code, setCode] = useState<string | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Activity, LogOut, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -51,7 +51,8 @@ function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<LookupResult | null>(null);
 
-  const checkAdmin = useServerFn(amIAdmin);
+  const _checkAdmin = useServerFn(amIAdmin);
+  const checkAdmin = useCallback(_checkAdmin, []);
   const lookup = useServerFn(adminLookupUser);
   const activate = useServerFn(adminActivateMembership);
 
