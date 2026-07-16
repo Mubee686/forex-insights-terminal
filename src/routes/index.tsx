@@ -722,6 +722,36 @@ function Terminal() {
 
 // ─── Small UI helpers ─────────────────────────────────────────────────────────
 
+function HeaderAuth() {
+  const { session, loading } = useAuthSession();
+  if (loading) return null;
+  if (!session) {
+    return (
+      <Link
+        to="/login"
+        className="flex items-center gap-1.5 rounded-md border border-sky-400/40 bg-sky-400/10 px-2.5 py-1.5 text-xs font-medium text-sky-300 transition-colors hover:bg-sky-400/20"
+      >
+        Login
+      </Link>
+    );
+  }
+  const name =
+    (session.user?.user_metadata?.full_name as string | undefined) ??
+    session.user?.email ??
+    "Account";
+  return (
+    <Link
+      to="/dashboard"
+      className="flex items-center gap-1.5 rounded-md border border-sky-400/40 bg-sky-400/10 px-2.5 py-1.5 text-xs font-medium text-sky-300 transition-colors hover:bg-sky-400/20"
+      title="Open dashboard"
+    >
+      <UserIcon className="h-3.5 w-3.5" />
+      <span className="max-w-[140px] truncate">{name}</span>
+    </Link>
+  );
+}
+
+
 function MenuItem({
   icon,
   label,
