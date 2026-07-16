@@ -13,8 +13,10 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPriceStreamRouteImport } from './routes/api.price-stream'
+import { Route as ApiPublicHooksMembershipExpiryCheckRouteImport } from './routes/api.public.hooks.membership-expiry-check'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -36,6 +38,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -46,66 +53,86 @@ const ApiPriceStreamRoute = ApiPriceStreamRouteImport.update({
   path: '/api/price-stream',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksMembershipExpiryCheckRoute =
+  ApiPublicHooksMembershipExpiryCheckRouteImport.update({
+    id: '/api/public/hooks/membership-expiry-check',
+    path: '/api/public/hooks/membership-expiry-check',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
+  '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
+  '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
+  '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/login'
     | '/register'
     | '/sitemap.xml'
     | '/api/price-stream'
+    | '/api/public/hooks/membership-expiry-check'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/login'
     | '/register'
     | '/sitemap.xml'
     | '/api/price-stream'
+    | '/api/public/hooks/membership-expiry-check'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/login'
     | '/register'
     | '/sitemap.xml'
     | '/api/price-stream'
+    | '/api/public/hooks/membership-expiry-check'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiPriceStreamRoute: typeof ApiPriceStreamRoute
+  ApiPublicHooksMembershipExpiryCheckRoute: typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -138,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -152,16 +186,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPriceStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/membership-expiry-check': {
+      id: '/api/public/hooks/membership-expiry-check'
+      path: '/api/public/hooks/membership-expiry-check'
+      fullPath: '/api/public/hooks/membership-expiry-check'
+      preLoaderRoute: typeof ApiPublicHooksMembershipExpiryCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiPriceStreamRoute: ApiPriceStreamRoute,
+  ApiPublicHooksMembershipExpiryCheckRoute:
+    ApiPublicHooksMembershipExpiryCheckRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
