@@ -6,7 +6,6 @@ import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, PrimaryButton, fieldClasses } from "@/components/auth/AuthShell";
-import { notifyAdmin } from "@/lib/auth-notifications.functions";
 import { confirmUserEmail } from "@/lib/auth-admin.functions";
 
 export const Route = createFileRoute("/register")({
@@ -79,13 +78,6 @@ function RegisterPage() {
           console.warn("[register] email auto-confirm failed:", e);
         }
       }
-
-      notifyAdmin({
-        data: {
-          email: normalizedEmail,
-          fullName: parsed.data.fullName,
-        },
-      }).catch(() => {});
 
       toast.success("Account created! Please log in.", {
         style: { background: "#0c1a2e", color: "#67e8f9", border: "1px solid oklch(0.78 0.13 195 / 0.3)" },

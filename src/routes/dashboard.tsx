@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth";
-import { ADMIN_EMAIL, ADMIN_NOTIFICATIONS_CHANNEL } from "@/lib/admin-config";
+import { ADMIN_EMAIL } from "@/lib/admin-config";
 import { getMyMembership } from "@/lib/membership.functions";
 
 export const Route = createFileRoute("/dashboard")({
@@ -50,25 +50,6 @@ function Dashboard() {
       })
       .catch((err: Error) => toast.error(err.message));
   }, [session, fetchMembership]);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    const channel = supabase
-      .channel(ADMIN_NOTIFICATIONS_CHANNEL)
-      .on(
-        "broadcast",
-        { event: "new-registration" },
-        ({ payload }: { payload: { email: string; location?: string } }) => {
-          toast.success(`New user registered: ${payload.email}`, {
-            description: payload.location ? `Approx. location: ${payload.location}` : undefined,
-          });
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isAdmin]);
 
   async function signOut() {
     await supabase.auth.signOut();

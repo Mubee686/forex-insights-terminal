@@ -9,6 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, PrimaryButton, fieldClasses } from "@/components/auth/AuthShell";
 import { autoConfirmByEmail } from "@/lib/auth-admin.functions";
 
+// Email confirmation is disabled at the DB level (handle_new_user trigger sets
+// email_confirmed_at on INSERT). The autoConfirmByEmail fallback below only
+// fires for accounts created before that migration ran.
+
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
