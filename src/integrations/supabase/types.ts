@@ -14,12 +14,52 @@ export type Database = {
   }
   public: {
     Tables: {
+      memberships: {
+        Row: {
+          activated_at: string | null
+          activated_by: string | null
+          created_at: string
+          duration_months: number | null
+          end_date: string | null
+          expiry_notified_at: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_by?: string | null
+          created_at?: string
+          duration_months?: number | null
+          end_date?: string | null
+          expiry_notified_at?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          activated_by?: string | null
+          created_at?: string
+          duration_months?: number | null
+          end_date?: string | null
+          expiry_notified_at?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
           email: string | null
           full_name: string | null
           id: string
+          member_code: string | null
           updated_at: string
         }
         Insert: {
@@ -27,6 +67,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          member_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -34,7 +75,26 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          member_code?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -43,10 +103,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_member_code: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -173,6 +240,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
