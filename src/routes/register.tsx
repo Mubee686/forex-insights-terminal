@@ -6,7 +6,6 @@ import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, PrimaryButton, fieldClasses } from "@/components/auth/AuthShell";
-import { confirmUserEmail } from "@/lib/auth-admin.functions";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -68,16 +67,6 @@ function RegisterPage() {
         },
       });
       if (error) throw error;
-
-      // Immediately confirm the email via the admin API so login works
-      // right away without the user needing to click a confirmation link.
-      if (data.user?.id) {
-        try {
-          await confirmUserEmail({ data: { userId: data.user.id } });
-        } catch (e) {
-          console.warn("[register] email auto-confirm failed:", e);
-        }
-      }
 
       toast.success("Account created! Please log in.", {
         style: { background: "#0c1a2e", color: "#67e8f9", border: "1px solid oklch(0.78 0.13 195 / 0.3)" },

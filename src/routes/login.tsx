@@ -1,17 +1,11 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, PrimaryButton, fieldClasses } from "@/components/auth/AuthShell";
-import { autoConfirmByEmail } from "@/lib/auth-admin.functions";
-
-// Email confirmation is disabled at the DB level (handle_new_user trigger sets
-// email_confirmed_at on INSERT). The autoConfirmByEmail fallback below only
-// fires for accounts created before that migration ran.
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -39,12 +33,6 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const confirmEmail = useServerFn(autoConfirmByEmail);
-
-  async function attemptLogin(normalizedEmail: string, pwd: string) {
-    return supabase.auth.signInWithPassword({ email: normalizedEmail, password: pwd });
-  }
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = schema.safeParse({ email, password });
@@ -60,20 +48,10 @@ function LoginPage() {
     setLoading(true);
     const normalizedEmail = parsed.data.email.trim().toLowerCase();
     try {
-      let { error } = await attemptLogin(normalizedEmail, parsed.data.password);
-
-      // If email wasn't confirmed (account registered before service-role key
-      // was set), confirm it now via the admin API and retry once.
-      if (
-        error &&
-        (error.message?.toLowerCase().includes("not confirmed") ||
-          error.message?.toLowerCase().includes("email_not_confirmed") ||
-          (error as { code?: string }).code === "email_not_confirmed")
-      ) {
-        await confirmEmail({ data: { email: normalizedEmail } }).catch(() => {});
-        const retry = await attemptLogin(normalizedEmail, parsed.data.password);
-        error = retry.error;
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: parsed.data.password,
+      });
 
       if (error) throw error;
 

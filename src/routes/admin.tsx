@@ -11,7 +11,6 @@ import {
   adminLookupUser,
   adminActivateMembership,
 } from "@/lib/membership.functions";
-import { confirmAllUnconfirmedUsers } from "@/lib/auth-admin.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -52,12 +51,9 @@ function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<LookupResult | null>(null);
 
-  const [bulkFixing, setBulkFixing] = useState(false);
-
   const checkAdmin = useServerFn(amIAdmin);
   const lookup = useServerFn(adminLookupUser);
   const activate = useServerFn(adminActivateMembership);
-  const bulkConfirm = useServerFn(confirmAllUnconfirmedUsers);
 
   useEffect(() => {
     if (loading) return;
@@ -98,22 +94,6 @@ function AdminPage() {
       toast.error(err instanceof Error ? err.message : "Activation failed");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function onBulkFix() {
-    setBulkFixing(true);
-    try {
-      const r = await bulkConfirm();
-      if (r.total === 0) {
-        toast.success("All accounts are already confirmed — no action needed.");
-      } else {
-        toast.success(`Fixed ${r.fixed} of ${r.total} unconfirmed account(s).`);
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bulk fix failed");
-    } finally {
-      setBulkFixing(false);
     }
   }
 
@@ -169,22 +149,10 @@ function AdminPage() {
 
       <main className="mx-auto max-w-3xl px-4 py-10">
         <div className="rounded-2xl border border-border bg-card p-6 shadow-[0_25px_60px_-20px_oklch(0.78_0.13_195/0.12)]">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">Membership Management</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Enter a user's membership code to look up their account and activate their membership.
-              </p>
-            </div>
-            <button
-              onClick={onBulkFix}
-              disabled={bulkFixing}
-              title="Force-confirm all unconfirmed email addresses so every registered user can log in"
-              className="shrink-0 rounded-md border border-border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-60"
-            >
-              {bulkFixing ? "Fixing…" : "Fix unconfirmed accounts"}
-            </button>
-          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Membership Management</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enter a user's membership code to look up their account and activate their membership.
+          </p>
 
           <form onSubmit={onSearch} className="mt-5 flex gap-2">
             <div className="relative flex-1">
