@@ -88,7 +88,6 @@ function AdminPage() {
     try {
       await activate({ data: { userId: result.profile.id, months } });
       toast.success(`Membership activated for ${months} month${months > 1 ? "s" : ""}`);
-      // Refresh
       const r = (await lookup({ data: { code: result.profile.member_code } })) as LookupResult;
       setResult(r);
     } catch (err) {
@@ -105,7 +104,7 @@ function AdminPage() {
 
   if (loading || checking) {
     return (
-      <div className="auth-bg flex min-h-screen items-center justify-center text-slate-500">
+      <div className="auth-bg flex min-h-screen items-center justify-center text-muted-foreground">
         Loading…
       </div>
     );
@@ -115,12 +114,12 @@ function AdminPage() {
     return (
       <div className="auth-bg flex min-h-screen items-center justify-center px-4 text-center">
         <div>
-          <ShieldCheck className="mx-auto h-10 w-10 text-sky-500" />
-          <h1 className="mt-3 text-xl font-semibold text-slate-800">Admin access only</h1>
-          <p className="mt-1 text-sm text-slate-500">You are not authorized to view this page.</p>
+          <ShieldCheck className="mx-auto h-10 w-10 text-primary" />
+          <h1 className="mt-3 text-xl font-semibold text-foreground">Admin access only</h1>
+          <p className="mt-1 text-sm text-muted-foreground">You are not authorized to view this page.</p>
           <Link
             to="/dashboard"
-            className="mt-4 inline-block rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
+            className="mt-4 inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Back to dashboard
           </Link>
@@ -132,50 +131,50 @@ function AdminPage() {
   const m = result?.membership;
 
   return (
-    <div className="auth-bg min-h-screen w-full text-slate-900">
-      <header className="relative z-10 flex items-center justify-between border-b border-white/60 bg-white/70 px-4 py-3 backdrop-blur">
-        <Link to="/dashboard" className="flex items-center gap-2 text-sky-700">
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-sky-100">
+    <div className="auth-bg min-h-screen w-full">
+      <header className="relative z-10 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur">
+        <Link to="/dashboard" className="flex items-center gap-2 text-primary">
+          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
             <Activity className="h-4 w-4" />
           </span>
-          <span className="text-sm font-semibold">MF SMC Trader · Admin</span>
+          <span className="text-sm font-semibold text-foreground">MF SMC Trader · Admin</span>
         </Link>
         <button
           onClick={signOut}
-          className="inline-flex items-center gap-1.5 rounded-md bg-white/80 px-3 py-1.5 text-sm font-medium text-sky-700 shadow-sm border border-sky-100"
+          className="inline-flex items-center gap-1.5 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent"
         >
           <LogOut className="h-4 w-4" /> Sign out
         </button>
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-10">
-        <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-lg backdrop-blur-xl">
-          <h1 className="text-2xl font-semibold tracking-tight">Membership Management</h1>
-          <p className="mt-1 text-sm text-slate-500">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-[0_25px_60px_-20px_oklch(0.78_0.13_195/0.12)]">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Membership Management</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Enter a user's membership code to look up their account and activate their membership.
           </p>
 
           <form onSubmit={onSearch} className="mt-5 flex gap-2">
             <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="MFSMC-XXXXXXXX"
-                className="w-full rounded-md border border-sky-100 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-sky-400"
+                className="w-full rounded-md border border-border bg-secondary py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
               />
             </div>
             <button
               type="submit"
               disabled={busy}
-              className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-60"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >
               {busy ? "Searching…" : "Search"}
             </button>
           </form>
 
           {result?.found && result.profile && (
-            <div className="mt-6 rounded-xl border border-sky-100 bg-sky-50/60 p-5">
+            <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-5">
               <div className="grid gap-2 text-sm">
                 <Row label="Name" value={result.profile.full_name ?? "—"} />
                 <Row label="Email" value={result.profile.email ?? "—"} />
@@ -200,14 +199,14 @@ function AdminPage() {
                 <button
                   onClick={() => onActivate(1)}
                   disabled={busy}
-                  className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-60"
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                 >
                   Activate 1 month
                 </button>
                 <button
                   onClick={() => onActivate(2)}
                   disabled={busy}
-                  className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60"
+                  className="rounded-md bg-primary/80 px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/70 disabled:opacity-60"
                 >
                   Activate 2 months
                 </button>
@@ -222,9 +221,9 @@ function AdminPage() {
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-sky-100/70 py-1.5 last:border-0">
-      <span className="text-slate-500">{label}</span>
-      <span className={mono ? "font-mono text-slate-800" : "text-slate-800"}>{value}</span>
+    <div className="flex justify-between gap-4 border-b border-border/50 py-1.5 last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={mono ? "font-mono text-foreground" : "text-foreground"}>{value}</span>
     </div>
   );
 }

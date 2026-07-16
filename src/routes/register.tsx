@@ -58,8 +58,6 @@ function RegisterPage() {
     }
     setErrors({});
     setLoading(true);
-    // Normalize the email the same way on register and login so a user
-    // can never be "not found" purely because of casing or stray spaces.
     const normalizedEmail = parsed.data.email.trim().toLowerCase();
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -72,14 +70,10 @@ function RegisterPage() {
       });
       if (error) throw error;
 
-      // Supabase requires email confirmation by default, which would block
-      // login until the confirmation link is clicked. Confirm immediately
-      // server-side so the account is usable right away.
       if (data.user?.id) {
         confirmUserEmail({ data: { userId: data.user.id } }).catch(() => {});
       }
 
-      // Notify admin gmail (fire and forget — never blocks the UX)
       notifyAdmin({
         data: {
           email: normalizedEmail,
@@ -88,8 +82,7 @@ function RegisterPage() {
       }).catch(() => {});
 
       toast.success("Account created! Please log in.", {
-        className: "toast-bounce-in",
-        style: { background: "#e0f2fe", color: "#075985", border: "1px solid #7dd3fc" },
+        style: { background: "#0c1a2e", color: "#67e8f9", border: "1px solid oklch(0.78 0.13 195 / 0.3)" },
       });
       navigate({ to: "/login" });
     } catch (err) {
@@ -107,7 +100,7 @@ function RegisterPage() {
       footer={
         <>
           Already have an account?{" "}
-          <Link to="/login" className="font-medium text-sky-600 hover:underline">
+          <Link to="/login" className="font-medium text-primary hover:underline">
             Log in
           </Link>
         </>
@@ -115,9 +108,9 @@ function RegisterPage() {
     >
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Full name</label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Full name</label>
           <div className="relative">
-            <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               autoComplete="name"
@@ -127,13 +120,13 @@ function RegisterPage() {
               className={fieldClasses(!!errors.fullName) + " pl-9"}
             />
           </div>
-          {errors.fullName && <p className="mt-1 text-xs text-rose-500">{errors.fullName}</p>}
+          {errors.fullName && <p className="mt-1 text-xs text-destructive">{errors.fullName}</p>}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Email</label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Email</label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="email"
               autoComplete="email"
@@ -143,13 +136,13 @@ function RegisterPage() {
               className={fieldClasses(!!errors.email) + " pl-9"}
             />
           </div>
-          {errors.email && <p className="mt-1 text-xs text-rose-500">{errors.email}</p>}
+          {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Password</label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Password</label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type={show ? "text" : "password"}
               autoComplete="new-password"
@@ -162,18 +155,18 @@ function RegisterPage() {
               type="button"
               onClick={() => setShow((v) => !v)}
               aria-label={show ? "Hide password" : "Show password"}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-sky-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-primary"
             >
               {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && <p className="mt-1 text-xs text-rose-500">{errors.password}</p>}
+          {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password}</p>}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Confirm password</label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Confirm password</label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type={show ? "text" : "password"}
               autoComplete="new-password"
@@ -183,7 +176,7 @@ function RegisterPage() {
               className={fieldClasses(!!errors.confirm) + " pl-9"}
             />
           </div>
-          {errors.confirm && <p className="mt-1 text-xs text-rose-500">{errors.confirm}</p>}
+          {errors.confirm && <p className="mt-1 text-xs text-destructive">{errors.confirm}</p>}
         </div>
 
         <PrimaryButton type="submit" loading={loading}>

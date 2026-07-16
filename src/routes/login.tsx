@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, PrimaryButton, fieldClasses } from "@/components/auth/AuthShell";
+import { autoConfirmByEmail } from "@/lib/auth-admin.functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -28,12 +30,16 @@ function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
   const [show, setShow] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
-  // Drives the fade-out on the form right before we hand off to the dashboard.
   const [success, setSuccess] = useState(false);
+
+  const confirmEmail = useServerFn(autoConfirmByEmail);
+
+  async function attemptLogin(normalizedEmail: string, pwd: string) {
+    return supabase.auth.signInWithPassword({ email: normalizedEmail, password: pwd });
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,23 +54,29 @@ function LoginPage() {
     }
     setErrors({});
     setLoading(true);
-    // Normalize the same way registration does, so casing/whitespace can
-    // never cause a false "account not found" mismatch.
     const normalizedEmail = parsed.data.email.trim().toLowerCase();
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password: parsed.data.password,
-      });
+      let { error } = await attemptLogin(normalizedEmail, parsed.data.password);
+
+      // If email wasn't confirmed (account registered before service-role key
+      // was set), confirm it now via the admin API and retry once.
+      if (
+        error &&
+        (error.message?.toLowerCase().includes("not confirmed") ||
+          error.message?.toLowerCase().includes("email_not_confirmed") ||
+          (error as { code?: string }).code === "email_not_confirmed")
+      ) {
+        await confirmEmail({ data: { email: normalizedEmail } }).catch(() => {});
+        const retry = await attemptLogin(normalizedEmail, parsed.data.password);
+        error = retry.error;
+      }
+
       if (error) throw error;
 
       toast.success("Login Successful", {
         className: "toast-bounce-in",
-        style: { background: "#e0f2fe", color: "#075985", border: "1px solid #7dd3fc" },
+        style: { background: "#0c1a2e", color: "#67e8f9", border: "1px solid oklch(0.78 0.13 195 / 0.3)" },
       });
-
-      // Soft fade-out on the form, then hand off to the dashboard, which
-      // fades/slides in on its own mount animation.
       setSuccess(true);
       setTimeout(() => navigate({ to: "/dashboard" }), 380);
     } catch (err) {
@@ -81,7 +93,7 @@ function LoginPage() {
       footer={
         <>
           New here?{" "}
-          <Link to="/register" className="font-medium text-sky-600 hover:underline">
+          <Link to="/register" className="font-medium text-primary hover:underline">
             Create an account
           </Link>
         </>
@@ -96,9 +108,9 @@ function LoginPage() {
         }
       >
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Email</label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Email</label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="email"
               autoComplete="email"
@@ -108,13 +120,13 @@ function LoginPage() {
               className={fieldClasses(!!errors.email) + " pl-9"}
             />
           </div>
-          {errors.email && <p className="mt-1 text-xs text-rose-500">{errors.email}</p>}
+          {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Password</label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Password</label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type={show ? "text" : "password"}
               autoComplete="current-password"
@@ -127,24 +139,15 @@ function LoginPage() {
               type="button"
               onClick={() => setShow((v) => !v)}
               aria-label={show ? "Hide password" : "Show password"}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-sky-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-primary"
             >
               {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && <p className="mt-1 text-xs text-rose-500">{errors.password}</p>}
+          {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password}</p>}
         </div>
 
-        <div className="flex items-center justify-between text-sm">
-          <label className="inline-flex items-center gap-2 text-slate-600">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400"
-            />
-            Remember me
-          </label>
+        <div className="flex items-center justify-end text-sm">
           <button
             type="button"
             onClick={async () => {
@@ -155,7 +158,7 @@ function LoginPage() {
               if (error) toast.error(error.message);
               else toast.success("Password reset email sent");
             }}
-            className="font-medium text-sky-600 hover:underline"
+            className="font-medium text-primary hover:underline"
           >
             Forgot password?
           </button>

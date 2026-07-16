@@ -9,6 +9,10 @@ const confirmSchema = z.object({
   userId: z.string().uuid(),
 });
 
+const confirmByEmailSchema = z.object({
+  email: z.string().email(),
+});
+
 /**
  * Immediately confirms a freshly-registered user's email server-side.
  *
@@ -22,6 +26,31 @@ const confirmSchema = z.object({
  * API the moment registration completes, so the same credentials can log
  * in right away.
  */
+/**
+ * Confirms a user's email by looking them up by email address.
+ * Used as a fallback on login when a pre-existing account was registered
+ * before the service role key was set (so auto-confirm silently failed).
+ */
+export const autoConfirmByEmail = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => confirmByEmailSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = supabaseAdmin as any;
+    // Find the user's id via the profiles table (service role bypasses RLS)
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("email", data.email.trim().toLowerCase())
+      .maybeSingle();
+    if (!profile?.id) return { confirmed: false, reason: "not_found" as const };
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(profile.id, {
+      email_confirm: true,
+    });
+    if (error) return { confirmed: false, reason: error.message };
+    return { confirmed: true };
+  });
+
 export const confirmUserEmail = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => confirmSchema.parse(data))
   .handler(async ({ data }) => {

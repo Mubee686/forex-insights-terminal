@@ -86,32 +86,32 @@ function Dashboard() {
   const status = membership?.status ?? "inactive";
   const statusColor =
     status === "active"
-      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
       : status === "expired"
-        ? "bg-rose-100 text-rose-700 border-rose-200"
-        : "bg-amber-100 text-amber-700 border-amber-200";
+        ? "bg-destructive/15 text-destructive border-destructive/30"
+        : "bg-amber-500/15 text-amber-400 border-amber-500/30";
 
   return (
-    <div className="auth-bg min-h-screen w-full text-slate-900">
-      <header className="relative z-10 flex items-center justify-between border-b border-white/60 bg-white/70 px-4 py-3 backdrop-blur">
-        <Link to="/" className="flex items-center gap-2 text-sky-700">
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-sky-100">
+    <div className="auth-bg min-h-screen w-full">
+      <header className="relative z-10 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur">
+        <Link to="/" className="flex items-center gap-2 text-primary">
+          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
             <Activity className="h-4 w-4" />
           </span>
-          <span className="text-sm font-semibold">MF SMC Trader</span>
+          <span className="text-sm font-semibold text-foreground">MF SMC Trader</span>
         </Link>
         <div className="flex items-center gap-2">
           {isAdmin && (
             <Link
               to="/admin"
-              className="inline-flex items-center gap-1.5 rounded-md bg-sky-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-sky-600"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/20"
             >
               <ShieldCheck className="h-4 w-4" /> Admin
             </Link>
           )}
           <button
             onClick={signOut}
-            className="inline-flex items-center gap-1.5 rounded-md bg-white/80 px-3 py-1.5 text-sm font-medium text-sky-700 shadow-sm border border-sky-100"
+            className="inline-flex items-center gap-1.5 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent"
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>
@@ -119,35 +119,35 @@ function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-10 space-y-6">
-        <div className="auth-fade-up rounded-2xl border border-white/60 bg-white/80 p-8 shadow-[0_25px_60px_-20px_rgba(56,189,248,0.35)] backdrop-blur-xl">
-          <h1 className="text-3xl font-semibold tracking-tight">
+        <div className="auth-fade-up rounded-2xl border border-border bg-card p-8 shadow-[0_25px_60px_-20px_oklch(0.78_0.13_195/0.15)]">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
             Welcome{displayName ? `, ${displayName}` : ""} 👋
           </h1>
-          <p className="mt-2 text-slate-500">Your permanent membership code and status.</p>
+          <p className="mt-2 text-muted-foreground">Your permanent membership code and status.</p>
 
-          <div className="mt-6 rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50 to-blue-50 p-5">
-            <div className="text-xs font-medium uppercase tracking-widest text-sky-600">
+          <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-5">
+            <div className="text-xs font-medium uppercase tracking-widest text-primary">
               Your unique membership code
             </div>
             <div className="mt-2 flex items-center gap-3">
-              <code className="flex-1 rounded-md bg-white/90 px-4 py-3 text-lg font-mono font-semibold tracking-widest text-sky-800 shadow-inner">
+              <code className="flex-1 rounded-md bg-secondary px-4 py-3 text-lg font-mono font-semibold tracking-widest text-primary border border-border">
                 {code ?? "…"}
               </code>
               <button
                 onClick={copyCode}
-                className="inline-flex items-center gap-1.5 rounded-md bg-sky-500 px-3 py-2.5 text-sm font-medium text-white hover:bg-sky-600"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 <Copy className="h-4 w-4" /> Copy
               </button>
             </div>
-            <p className="mt-3 text-xs text-sky-700/80">
+            <p className="mt-3 text-xs text-muted-foreground">
               This code is fixed to your account — it never changes.
             </p>
           </div>
 
-          <div className="mt-5 flex items-center justify-between rounded-xl border border-sky-100 bg-white/70 p-4">
+          <div className="mt-5 flex items-center justify-between rounded-xl border border-border bg-secondary/50 p-4">
             <div>
-              <div className="text-xs font-medium uppercase tracking-widest text-slate-500">
+              <div className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                 Membership status
               </div>
               <div className="mt-1 flex items-center gap-2">
@@ -155,7 +155,7 @@ function Dashboard() {
                   {status}
                 </span>
                 {membership?.end_date && (
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-muted-foreground">
                     until {new Date(membership.end_date).toLocaleDateString()}
                   </span>
                 )}
@@ -163,24 +163,24 @@ function Dashboard() {
             </div>
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-white/80 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
             >
               <LineChart className="h-4 w-4" /> Open Terminal
             </Link>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-sm">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
-            <Mail className="h-5 w-5 text-sky-500" /> How to activate your membership
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Mail className="h-5 w-5 text-primary" /> How to activate your membership
           </h2>
-          <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm text-slate-600">
+          <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm text-muted-foreground">
             <li>Copy your unique code above.</li>
             <li>
               Contact us on WhatsApp / Email:{" "}
               <a
                 href={`mailto:${ADMIN_EMAIL}`}
-                className="font-medium text-sky-600 hover:underline"
+                className="font-medium text-primary hover:underline"
               >
                 {ADMIN_EMAIL}
               </a>
