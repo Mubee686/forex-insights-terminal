@@ -42,3 +42,14 @@ externalPort = 3001
 deploymentTarget = "autoscale"
 run = ["bun", "run", "src/server.ts"]
 build = ["bun", "run", "build"]
+
+[userenv]
+
+[userenv.shared]
+SUPABASE_PROJECT_ID = "cgirdlkuarpzrpaybrkb"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TdHq5P1Gn_fxZyApaGBJww_SpehDX8i"
+SUPABASE_URL = "https://cgirdlkuarpzrpaybrkb.supabase.co"
+VITE_SUPABASE_PROJECT_ID = "cgirdlkuarpzrpaybrkb"
+VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TdHq5P1Gn_fxZyApaGBJww_SpehDX8i"
+VITE_SUPABASE_URL = "https://cgirdlkuarpzrpaybrkb.supabase.co"
+ADMIN_DASHBOARD_PASSWORD_HASH = "d14955d4a32fcb9d2763067b5ea76339e33d22e00ceab8db0460b108bbcbc02d"
