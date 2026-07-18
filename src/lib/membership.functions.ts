@@ -51,20 +51,34 @@ export const amIAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const sb = context.supabase as AnyClient;
-    const email = (context.claims as any)?.email as string | undefined;
+
+    // Get the real email directly from Supabase Auth (most reliable source)
+    const { data: userData } = await sb.auth.getUser();
+    const email = userData?.user?.email ?? "";
+
+    console.log("[amIAdmin] userId:", context.userId);
+    console.log("[amIAdmin] email from getUser:", email);
+    console.log("[amIAdmin] ADMIN_EMAIL:", ADMIN_EMAIL);
 
     // Primary check: user_roles table
-    const { data } = await sb
+    const { data: roleData, error: roleError } = await sb
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)
       .eq("role", "admin")
       .maybeSingle();
-    if (data) return { isAdmin: true };
 
-    // Fallback: email match (covers missing user_roles row)
-    if (email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) return { isAdmin: true };
+    console.log("[amIAdmin] user_roles result:", roleData, "error:", roleError?.message);
 
+    if (roleData) return { isAdmin: true };
+
+    // Fallback: direct email match (works even if user_roles row is missing)
+    if (email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+      console.log("[amIAdmin] granted via email fallback");
+      return { isAdmin: true };
+    }
+
+    console.log("[amIAdmin] denied");
     return { isAdmin: false };
   });
 
