@@ -2,19 +2,26 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { ADMIN_EMAIL } from "@/lib/admin-config";
 
 // Cast to any locally — the generated types.ts predates these tables.
 // Runtime safety is enforced by Zod validators + Supabase RLS.
 type AnyClient = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-async function requireAdmin(sb: AnyClient, userId: string) {
+async function requireAdmin(sb: AnyClient, userId: string, email?: string) {
+  // Primary check: user_roles table
   const { data } = await sb
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
     .eq("role", "admin")
     .maybeSingle();
-  if (!data) throw new Error("Forbidden");
+  if (data) return; // ✓ found in table
+
+  // Fallback: email match (covers cases where user_roles row is missing)
+  if (email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) return;
+
+  throw new Error("Forbidden");
 }
 
 // ─── Public (user-facing) ─────────────────────────────────────────────────────
@@ -44,13 +51,21 @@ export const amIAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const sb = context.supabase as AnyClient;
+    const email = (context.claims as any)?.email as string | undefined;
+
+    // Primary check: user_roles table
     const { data } = await sb
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)
       .eq("role", "admin")
       .maybeSingle();
-    return { isAdmin: !!data };
+    if (data) return { isAdmin: true };
+
+    // Fallback: email match (covers missing user_roles row)
+    if (email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) return { isAdmin: true };
+
+    return { isAdmin: false };
   });
 
 // ─── Admin — second-layer password ───────────────────────────────────────────
@@ -60,7 +75,8 @@ export const adminVerifyPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => z.object({ password: z.string().min(1) }).parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context.supabase as AnyClient, context.userId);
+    const _email = (context.claims as any)?.email as string | undefined;
+    await requireAdmin(context.supabase as AnyClient, context.userId, _email);
     const { createHash } = await import("node:crypto");
     const stored = process.env.ADMIN_DASHBOARD_PASSWORD_HASH ?? "";
     const input = createHash("sha256").update(data.password).digest("hex");
@@ -93,7 +109,8 @@ export const adminListUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const sb = context.supabase as AnyClient;
-    await requireAdmin(sb, context.userId);
+    const email = (context.claims as any)?.email as string | undefined;
+    await requireAdmin(sb, context.userId, email);
 
     const [profilesRes, membershipsRes] = await Promise.all([
       sb
@@ -143,7 +160,8 @@ export const adminActivateMembership = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const sb = context.supabase as AnyClient;
-    await requireAdmin(sb, context.userId);
+    const email = (context.claims as any)?.email as string | undefined;
+    await requireAdmin(sb, context.userId, email);
 
     // Snapshot current state for revert
     const { data: cur } = await sb
@@ -201,7 +219,8 @@ export const adminCancelMembership = createServerFn({ method: "POST" })
   .validator((data: unknown) => z.object({ userId: z.string().uuid() }).parse(data))
   .handler(async ({ context, data }) => {
     const sb = context.supabase as AnyClient;
-    await requireAdmin(sb, context.userId);
+    const email = (context.claims as any)?.email as string | undefined;
+    await requireAdmin(sb, context.userId, email);
 
     const { data: cur } = await sb
       .from("memberships")
@@ -236,7 +255,8 @@ export const adminRevertMembership = createServerFn({ method: "POST" })
   .validator((data: unknown) => z.object({ userId: z.string().uuid() }).parse(data))
   .handler(async ({ context, data }) => {
     const sb = context.supabase as AnyClient;
-    await requireAdmin(sb, context.userId);
+    const email = (context.claims as any)?.email as string | undefined;
+    await requireAdmin(sb, context.userId, email);
 
     const { data: cur } = await sb
       .from("memberships")
