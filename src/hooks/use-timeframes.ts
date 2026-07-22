@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_TIMEFRAME_IDS,
   getTimeframe,
@@ -128,9 +128,13 @@ export function useTimeframeBar(): TimeframeBar {
 
   const reset = useCallback(() => setIds([...DEFAULT_TIMEFRAME_IDS]), []);
 
+  // Memoize so consumers that include `items` in effect deps don't re-fire on
+  // every render — `ids` is stable state; items only changes when ids changes.
+  const items = useMemo(() => ids.map(getTimeframe), [ids]);
+
   return {
     ids,
-    items: ids.map(getTimeframe),
+    items,
     hydrated,
     isPinned,
     pin,

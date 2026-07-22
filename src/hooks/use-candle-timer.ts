@@ -11,6 +11,7 @@
  * real wall-clock value after first client render, avoiding hydration mismatches.
  */
 import { useEffect, useRef, useState } from "react";
+
 import { candleSecondsLeft, formatCountdown } from "@/lib/timeframes";
 
 export interface CandleTimer {
@@ -25,12 +26,17 @@ export function useCandleTimer(timeframeId: string): CandleTimer {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [epoch, setEpoch] = useState(0);
   const mountedRef = useRef(false);
+  // Track previous seconds via ref so candle-close detection doesn't need
+  // a nested setState call (which can misfire under React 19 Strict Mode).
+  const prevSecondsRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
 
     // Compute the real value immediately on mount.
-    setSecondsLeft(candleSecondsLeft(timeframeId));
+    const initial = candleSecondsLeft(timeframeId);
+    prevSecondsRef.current = initial;
+    setSecondsLeft(initial);
 
     // Align the first tick to the next wall-clock second boundary so the
     // display counts down in exact 1-second steps without drifting.
@@ -41,13 +47,12 @@ export function useCandleTimer(timeframeId: string): CandleTimer {
     const alignId = setTimeout(() => {
       const tick = () => {
         const left = candleSecondsLeft(timeframeId);
-        setSecondsLeft((prev) => {
-          // Candle closed: prev was at/near 0 and the value has reset to ~period.
-          if (prev <= 1 && left > 1) {
-            setEpoch((e) => e + 1);
-          }
-          return left;
-        });
+        // Candle closed: previous value was at/near 0 and value has reset to ~period.
+        if (prevSecondsRef.current <= 1 && left > 1) {
+          setEpoch((e) => e + 1);
+        }
+        prevSecondsRef.current = left;
+        setSecondsLeft(left);
       };
 
       tick();
