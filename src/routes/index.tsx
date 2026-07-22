@@ -206,23 +206,6 @@ function Terminal() {
 
         <div className="flex items-center gap-2">
           <FeedBadge status={status} onRetry={refresh} />
-          <button
-            onClick={() => setToolsOpen((v) => !v)}
-            aria-label="SMC analysis tools"
-            aria-pressed={toolsOpen}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
-              toolsOpen
-                ? "border-primary/40 bg-primary/15 text-primary"
-                : "border-border bg-secondary/50 text-muted-foreground hover:bg-accent hover:text-foreground",
-            )}
-          >
-            <Layers className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">SMC Tools</span>
-            <span className="tabular rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-              {enabled.size}
-            </span>
-          </button>
           <HeaderAuth />
         </div>
       </header>
@@ -338,36 +321,25 @@ function Terminal() {
             <Stat label="High" value={formatPrice(sessionHigh, pair.digits)} />
             <Stat label="Low" value={formatPrice(sessionLow, pair.digits)} />
 
-            {/* ── Chart type + timeframe bar ──────────────────────────── */}
+            {/* ── SMC Tools + timeframe bar ──────────────────────────── */}
             <div className="ml-auto flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5 rounded-md border border-border bg-secondary/40 p-0.5">
-                <button
-                  onClick={() => setChartType("candlestick")}
-                  aria-label="Candlestick chart"
-                  aria-pressed={chartType === "candlestick"}
-                  className={cn(
-                    "flex items-center gap-1 rounded px-2 py-1 text-[11px] font-semibold transition-colors",
-                    chartType === "candlestick"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <CandlestickChart className="h-3 w-3" />
-                </button>
-                <button
-                  onClick={() => setChartType("line")}
-                  aria-label="Line chart"
-                  aria-pressed={chartType === "line"}
-                  className={cn(
-                    "flex items-center gap-1 rounded px-2 py-1 text-[11px] font-semibold transition-colors",
-                    chartType === "line"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <LineChart className="h-3 w-3" />
-                </button>
-              </div>
+              <button
+                onClick={() => setToolsOpen((v) => !v)}
+                aria-label="SMC analysis tools"
+                aria-pressed={toolsOpen}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  toolsOpen
+                    ? "border-primary/40 bg-primary/15 text-primary"
+                    : "border-border bg-secondary/50 text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>SMC Analysis</span>
+                <span className="tabular rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  {enabled.size}
+                </span>
+              </button>
 
               <div className="scroll-thin flex max-w-[60vw] items-center gap-0.5 overflow-x-auto rounded-md border border-border bg-secondary/40 p-0.5 lg:max-w-none">
                 {bar.items.map((t) => {
