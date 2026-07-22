@@ -71,6 +71,12 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       throw new Error('Unauthorized: Invalid token');
     }
 
+    // Node.js < 22 has no native WebSocket; provide `ws` so that the
+    // Supabase realtime client doesn't throw on server-side renders.
+    // This app doesn't use Supabase realtime (prices come via SSE),
+    // but the client still initialises a realtime socket by default.
+    const { default: WS } = await import('ws');
+
     const supabase = createClient<Database>(
       SUPABASE_URL!,
       SUPABASE_PUBLISHABLE_KEY!,
@@ -86,6 +92,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
           persistSession: false,
           autoRefreshToken: false,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        realtime: { transport: WS as any },
       }
     );
 

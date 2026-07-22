@@ -3,6 +3,9 @@
 // Use this for admin operations in server functions and server routes only.
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from '@supabase/supabase-js';
+// Node.js < 22 has no native WebSocket; `ws` is the polyfill.
+// Top-level import is safe here because this file is server-only (.server.ts).
+import WS from 'ws';
 import type { Database } from './types';
 
 function isNewSupabaseApiKey(value: string): boolean {
@@ -51,7 +54,9 @@ function createSupabaseAdminClient() {
       storage: undefined,
       persistSession: false,
       autoRefreshToken: false,
-    }
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    realtime: { transport: WS as any },
   });
 }
 
