@@ -166,16 +166,20 @@ export function TradingChart({
   const [legend, setLegend] = useState<Candle | null>(null);
   // Y-coordinate (px) of the current price on the chart, for timer placement
   const [priceY, setPriceY] = useState<number | null>(null);
+  // Width of the right price scale, so timer badge exactly matches the price badge width
+  const [scaleWidth, setScaleWidth] = useState<number>(0);
 
   // ── price-Y updater — called on every event that can shift the Y scale ──
   const updatePriceY = useRef<() => void>(() => {});
   updatePriceY.current = () => {
+    const chart = chartRef.current;
     const series = seriesRef.current;
     const cs = candlesRef.current;
-    if (!series || cs.length === 0) return;
+    if (!chart || !series || cs.length === 0) return;
     const lastClose = cs[cs.length - 1].close;
     const y = series.priceToCoordinate(lastClose);
     setPriceY(y ?? null);
+    setScaleWidth(chart.priceScale("right").width());
   };
 
   // ── overlay drawing ───────────────────────────────────────────────────────
@@ -469,11 +473,11 @@ export function TradingChart({
         </div>
       )}
 
-      {/* Candle countdown timer — sits just below the price badge on the Y-axis */}
-      {formattedTime && priceY != null && (
+      {/* Candle countdown timer — sits just below the price badge, same width as price axis */}
+      {formattedTime && priceY != null && scaleWidth > 0 && (
         <div
-          className="pointer-events-none absolute z-10 rounded bg-[#1b2436] px-2 py-[3px] text-[12px] font-medium tabular-nums text-[#a9b3c4]"
-          style={{ top: priceY + 14, right: 0 }}
+          className="pointer-events-none absolute z-10 flex items-center justify-center bg-[#1b2436] py-[3px] text-[12px] font-medium tabular-nums text-[#a9b3c4]"
+          style={{ top: priceY + 14, right: 0, width: scaleWidth }}
         >
           {formattedTime}
         </div>
