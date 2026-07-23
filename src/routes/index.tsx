@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   CandlestickChart,
   Layers,
   LineChart,
   Loader2,
+  Lock,
   Pencil,
   Pin,
   PinOff,
@@ -20,6 +21,9 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyMembership } from "@/lib/membership.functions";
 
 import { TradingChart, type ChartType } from "@/components/TradingChart";
 import { useMarketData, type FeedStatus } from "@/hooks/use-market-data";
@@ -66,6 +70,17 @@ function Terminal() {
   const [query, setQuery] = useState("");
   const [toolsOpen, setToolsOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candlestick");
+  const [membershipActive, setMembershipActive] = useState(false);
+
+  const { session } = useAuthSession();
+  const _fetchMembership = useServerFn(getMyMembership);
+  const fetchMembership = useCallback(_fetchMembership, []);
+  useEffect(() => {
+    if (!session) return;
+    fetchMembership()
+      .then((r) => setMembershipActive(r.membership?.status === "active"))
+      .catch(() => {});
+  }, [session, fetchMembership]);
 
   const bar = useTimeframeBar();
   const { formattedTime, epoch } = useCandleTimer(timeframeId);
@@ -117,12 +132,21 @@ function Terminal() {
     : NaN;
   const sessionLow = candles.length ? candles.reduce((m, c) => Math.min(m, c.low), Infinity) : NaN;
 
-  const toggle = (id: ToolId) =>
+  const toggle = (id: ToolId) => {
+    const tool = TOOLS.find((t) => t.id === id);
+    if (tool?.tier === "premium" && !membershipActive) {
+      toast.error("Premium membership required to use this tool.", {
+        description: "Upgrade your plan from the dashboard.",
+        action: { label: "Dashboard", onClick: () => window.location.href = "/dashboard" },
+      });
+      return;
+    }
     setEnabled((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
 
   const filteredPairs = FOREX_PAIRS.filter(
     (p) =>
@@ -508,46 +532,55 @@ function Terminal() {
                       <div className="space-y-2">
                         {tierTools.map((t) => {
                           const on = enabled.has(t.id);
+                          const locked = t.tier === "premium" && !membershipActive;
                           return (
                             <button
                               key={t.id}
                               onClick={() => toggle(t.id)}
                               className={cn(
                                 "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
-                                on ? "border-border bg-secondary/40" : "border-border/50 bg-transparent",
+                                locked
+                                  ? "cursor-not-allowed border-border/30 bg-transparent opacity-50"
+                                  : on ? "border-border bg-secondary/40" : "border-border/50 bg-transparent",
                               )}
                             >
                               <span
                                 className="mt-1 h-3 w-3 shrink-0 rounded-sm"
                                 style={{
-                                  backgroundColor: on ? t.color : "transparent",
-                                  border: `1px solid ${t.color}`,
+                                  backgroundColor: locked ? "transparent" : on ? t.color : "transparent",
+                                  border: `1px solid ${locked ? "currentColor" : t.color}`,
                                 }}
                               />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-sm font-semibold">{t.name}</span>
-                                  <span className="tabular rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                    {zoneCount(t.id)}
-                                  </span>
+                                  {locked ? (
+                                    <Lock className="h-3 w-3 shrink-0 text-amber-400" />
+                                  ) : (
+                                    <span className="tabular rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                      {zoneCount(t.id)}
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                                  {t.description}
+                                  {locked ? "Active membership required" : t.description}
                                 </p>
                               </div>
-                              <span
-                                className={cn(
-                                  "mt-0.5 flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors",
-                                  on ? "bg-primary" : "bg-secondary",
-                                )}
-                              >
+                              {!locked && (
                                 <span
                                   className={cn(
-                                    "h-3 w-3 rounded-full bg-background transition-transform",
-                                    on && "translate-x-3",
+                                    "mt-0.5 flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors",
+                                    on ? "bg-primary" : "bg-secondary",
                                   )}
-                                />
-                              </span>
+                                >
+                                  <span
+                                    className={cn(
+                                      "h-3 w-3 rounded-full bg-background transition-transform",
+                                      on && "translate-x-3",
+                                    )}
+                                  />
+                                </span>
+                              )}
                             </button>
                           );
                         })}
