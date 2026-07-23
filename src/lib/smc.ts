@@ -1,6 +1,6 @@
 import type { Candle } from "./forex";
 
-export type ToolId = "orderBlocks" | "fvg" | "liquidity" | "bos" | "choch" | "poi";
+export type ToolId = "orderBlocks" | "fvg" | "liquidity" | "bos" | "choch" | "poi" | "idm";
 
 export type ZoneKind = "bullish" | "bearish" | "neutral";
 
@@ -69,6 +69,13 @@ export const TOOLS: ToolMeta[] = [
     short: "POI",
     color: "#ec4899",
     description: "High-probability order blocks confluent with an FVG.",
+  },
+  {
+    id: "idm",
+    name: "Inducement",
+    short: "IDM",
+    color: "#fb923c",
+    description: "Minor liquidity swing used to lure traders before the real move.",
   },
 ];
 
@@ -274,6 +281,50 @@ function detectLiquidity(candles: Candle[], swings: Swing[], lastIndex: number):
   return zones.slice(-6);
 }
 
+function detectIDM(candles: Candle[], swings: Swing[], lastIndex: number): Zone[] {
+  const zones: Zone[] = [];
+  const highs = swings.filter((s) => s.type === "high");
+  const lows = swings.filter((s) => s.type === "low");
+
+  // Bearish IDM: a swing high that sits below the previous swing high
+  // (minor liquidity planted to lure buyers before a downward sweep)
+  for (let i = 1; i < highs.length; i++) {
+    if (highs[i].price < highs[i - 1].price) {
+      zones.push({
+        id: `idm-h-${highs[i].index}`,
+        tool: "idm",
+        kind: "bearish",
+        startIndex: highs[i].index,
+        endIndex: lastIndex,
+        price: highs[i].price,
+        label: "IDM",
+        detail: "Bearish inducement — minor high below prior high",
+      });
+    }
+  }
+
+  // Bullish IDM: a swing low that sits above the previous swing low
+  // (minor liquidity planted to lure sellers before an upward sweep)
+  for (let i = 1; i < lows.length; i++) {
+    if (lows[i].price > lows[i - 1].price) {
+      zones.push({
+        id: `idm-l-${lows[i].index}`,
+        tool: "idm",
+        kind: "bullish",
+        startIndex: lows[i].index,
+        endIndex: lastIndex,
+        price: lows[i].price,
+        label: "IDM",
+        detail: "Bullish inducement — minor low above prior low",
+      });
+    }
+  }
+
+  return zones
+    .sort((a, b) => a.startIndex - b.startIndex)
+    .slice(-6);
+}
+
 function detectPOI(orderBlocks: Zone[], fvgs: Zone[]): Zone[] {
   const zones: Zone[] = [];
   for (const ob of orderBlocks) {
@@ -309,6 +360,7 @@ export interface AnalysisResult {
   bos: Zone[];
   choch: Zone[];
   poi: Zone[];
+  idm: Zone[];
 }
 
 export function analyze(candles: Candle[]): AnalysisResult {
@@ -319,6 +371,7 @@ export function analyze(candles: Candle[]): AnalysisResult {
     bos: [],
     choch: [],
     poi: [],
+    idm: [],
   };
   if (candles.length < 10) return empty;
 
@@ -329,6 +382,7 @@ export function analyze(candles: Candle[]): AnalysisResult {
   const orderBlocks = detectOrderBlocks(candles, structure.obSeeds, lastIndex);
   const liquidity = detectLiquidity(candles, swings, lastIndex);
   const poi = detectPOI(orderBlocks, fvg);
+  const idm = detectIDM(candles, swings, lastIndex);
 
   return {
     orderBlocks,
@@ -337,6 +391,7 @@ export function analyze(candles: Candle[]): AnalysisResult {
     bos: structure.bos,
     choch: structure.choch,
     poi,
+    idm,
   };
 }
 
