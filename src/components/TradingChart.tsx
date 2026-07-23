@@ -92,7 +92,7 @@ function createSeriesForType(
       priceLineVisible: true,
       priceLineColor: "#2962ff",
       priceLineWidth: 1,
-      lastValueVisible: true,
+      lastValueVisible: false,
       crosshairMarkerVisible: true,
       priceFormat,
     });
@@ -108,7 +108,7 @@ function createSeriesForType(
     priceLineVisible: true,
     priceLineColor: "#2962ff",
     priceLineWidth: 1,
-    lastValueVisible: true,
+    lastValueVisible: false,
     priceFormat,
   });
 }
@@ -473,13 +473,25 @@ export function TradingChart({
         </div>
       )}
 
-      {/* Candle countdown timer — sits flush below the price badge as one connected unit */}
-      {formattedTime && priceY != null && scaleWidth > 0 && (
+      {/* Combined price + timer badge — one single element on the right axis */}
+      {priceY != null && scaleWidth > 0 && candles.length > 0 && (
         <div
-          className="pointer-events-none absolute z-10 flex items-center justify-center bg-[#1b2436] py-[2px] text-[11px] font-medium tabular-nums text-[#38bdf8]"
-          style={{ top: priceY + 10, right: 0, width: scaleWidth - 6 }}
+          className="pointer-events-none absolute z-10 overflow-hidden"
+          style={{ top: priceY - 9, right: 0, width: scaleWidth - 6 }}
         >
-          {formattedTime}
+          {/* Price row */}
+          <div
+            className="flex items-center justify-center py-[2px] text-[11px] font-medium tabular-nums text-white"
+            style={{ background: "#2962ff" }}
+          >
+            {formatPrice(candles[candles.length - 1].close, digits)}
+          </div>
+          {/* Timer row */}
+          {formattedTime && (
+            <div className="flex items-center justify-center bg-[#1b2436] py-[2px] text-[11px] font-medium tabular-nums text-[#38bdf8]">
+              {formattedTime}
+            </div>
+          )}
         </div>
       )}
 
