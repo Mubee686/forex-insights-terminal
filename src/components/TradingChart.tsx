@@ -473,11 +473,16 @@ export function TradingChart({
         </div>
       )}
 
-      {/* Candle countdown timer — sits just below the price badge, same width as price axis */}
+      {/* Candle countdown timer — fused below the price badge as one connected unit */}
       {formattedTime && priceY != null && scaleWidth > 0 && (
         <div
-          className="pointer-events-none absolute z-10 flex items-center justify-center bg-[#1b2436] py-[2px] text-[11px] font-medium tabular-nums text-[#38bdf8]"
-          style={{ top: priceY + 14, right: 0, width: scaleWidth - 6 }}
+          className="pointer-events-none absolute z-10 flex items-center justify-center rounded-b-[2px] py-[2px] text-[11px] font-medium tabular-nums text-white"
+          style={{
+            top: priceY + 10,
+            right: 0,
+            width: scaleWidth - 6,
+            background: "#2962ff",
+          }}
         >
           {formattedTime}
         </div>
