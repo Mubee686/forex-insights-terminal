@@ -35,6 +35,8 @@ interface Props {
   resetKey: string;
   isLoading?: boolean;
   chartType?: ChartType;
+  /** Candle countdown string from useCandleTimer, e.g. "04:37" */
+  formattedTime?: string;
 }
 
 // ─── chart palette ───────────────────────────────────────────────────────────
@@ -142,6 +144,7 @@ export function TradingChart({
   resetKey,
   isLoading,
   chartType = "candlestick",
+  formattedTime,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -161,6 +164,8 @@ export function TradingChart({
   const prevCandlesRef = useRef<Candle[]>([]);
 
   const [legend, setLegend] = useState<Candle | null>(null);
+  // Y-coordinate (px) of the current price on the chart, for timer placement
+  const [priceY, setPriceY] = useState<number | null>(null);
 
   // ── overlay drawing ───────────────────────────────────────────────────────
   const drawOverlay = useRef<() => void>(() => {});
@@ -385,6 +390,13 @@ export function TradingChart({
 
     prevCandlesRef.current = candles;
     drawOverlay.current();
+
+    // Update the Y-coordinate of the live price for the timer overlay
+    const lastClose = candles[candles.length - 1]?.close;
+    if (lastClose != null && seriesRef.current) {
+      const y = seriesRef.current.priceToCoordinate(lastClose);
+      setPriceY(y ?? null);
+    }
   }, [candles]);
 
   // ── swap series type (candlestick ⇄ line) without recreating the chart ──
@@ -438,6 +450,19 @@ export function TradingChart({
           <span className="text-muted-foreground">
             C <span className="tabular text-foreground">{formatPrice(legend.close, digits)}</span>
           </span>
+        </div>
+      )}
+
+      {/* Candle countdown timer — sits just below the price badge on the Y-axis */}
+      {formattedTime && priceY != null && (
+        <div
+          className="pointer-events-none absolute z-10 flex items-center gap-1 rounded bg-[#1b2436] px-1.5 py-0.5 text-[10px] tabular-nums text-[#a9b3c4]"
+          style={{ top: priceY + 14, right: 0 }}
+        >
+          <svg className="h-2.5 w-2.5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+          </svg>
+          {formattedTime}
         </div>
       )}
 

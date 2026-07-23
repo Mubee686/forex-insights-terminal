@@ -448,7 +448,7 @@ function Terminal() {
           </div>
 
           {/* Chart */}
-          <div className="relative min-h-0 flex-1 bg-card">
+          <div className="min-h-0 flex-1 bg-card">
             <TradingChart
               candles={candles}
               zones={zones}
@@ -456,21 +456,8 @@ function Terminal() {
               resetKey={`${symbol}|${timeframeId}`}
               isLoading={isLoading}
               chartType={chartType}
+              formattedTime={formattedTime}
             />
-            {/* TradingView-style candle timer + current price overlay */}
-            {livePrice != null && (
-              <div className="pointer-events-none absolute bottom-6 right-16 z-10 flex flex-col items-end gap-0.5">
-                <div className="flex items-center gap-1 rounded bg-panel/80 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground backdrop-blur-sm">
-                  <svg className="h-2.5 w-2.5 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-                  </svg>
-                  {formattedTime}
-                </div>
-                <div className="rounded bg-primary px-2 py-0.5 text-[11px] font-semibold tabular-nums text-primary-foreground">
-                  {formatPrice(livePrice, pair.digits)}
-                </div>
-              </div>
-            )}
           </div>
         </main>
 
