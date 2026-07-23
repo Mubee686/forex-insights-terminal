@@ -25,57 +25,65 @@ export interface ToolMeta {
   short: string;
   color: string; // representative colour for legend / chip
   description: string;
+  tier: "free" | "premium";
 }
 
 export const TOOLS: ToolMeta[] = [
   {
-    id: "orderBlocks",
-    name: "Order Blocks",
-    short: "OB",
-    color: "#38bdf8",
-    description: "Last opposing candle before an impulsive structure break.",
-  },
-  {
-    id: "fvg",
-    name: "Fair Value Gaps",
-    short: "FVG",
-    color: "#a78bfa",
-    description: "Three-candle imbalance where price left an inefficiency.",
-  },
-  {
-    id: "liquidity",
-    name: "Liquidity Zones",
-    short: "LQ",
-    color: "#f59e0b",
-    description: "Equal highs / lows resting liquidity (BSL & SSL).",
+    id: "idm",
+    name: "Inducement",
+    short: "IDM",
+    color: "#fb923c",
+    tier: "free",
+    description: "Minor liquidity swing used to lure traders before the real move.",
   },
   {
     id: "bos",
     name: "Break of Structure",
     short: "BOS",
     color: "#34d399",
+    tier: "free",
     description: "Trend continuation break of a prior swing point.",
   },
   {
-    id: "choch",
-    name: "Change of Character",
-    short: "CHoCH",
-    color: "#facc15",
-    description: "First counter-trend break signalling a reversal.",
+    id: "orderBlocks",
+    name: "Order Blocks",
+    short: "OB",
+    color: "#38bdf8",
+    tier: "premium",
+    description: "Last opposing candle before an impulsive structure break.",
   },
   {
     id: "poi",
     name: "Points of Interest",
     short: "POI",
     color: "#ec4899",
+    tier: "premium",
     description: "High-probability order blocks confluent with an FVG.",
   },
   {
-    id: "idm",
-    name: "Inducement",
-    short: "IDM",
-    color: "#fb923c",
-    description: "Minor liquidity swing used to lure traders before the real move.",
+    id: "liquidity",
+    name: "Liquidity Zones",
+    short: "LQ",
+    color: "#f59e0b",
+    tier: "premium",
+    description: "Equal highs / lows resting liquidity (BSL & SSL).",
+  },
+  {
+    id: "choch",
+    name: "Change of Character",
+    short: "CHoCH",
+    color: "#facc15",
+    tier: "premium",
+    description: "First counter-trend break signalling a reversal.",
+  },
+  {
+    id: "fvg",
+    name: "Fair Value Gaps",
+    short: "FVG",
+    color: "#a78bfa",
+    tier: "premium",
+    description: "Three-candle imbalance where price left an inefficiency.",
   },
 ];
 

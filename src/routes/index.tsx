@@ -486,53 +486,75 @@ function Terminal() {
               </div>
 
               <div className="scroll-thin flex-1 overflow-y-auto p-3">
-                <div className="space-y-2">
-                  {TOOLS.map((t) => {
-                    const on = enabled.has(t.id);
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => toggle(t.id)}
-                        className={cn(
-                          "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
-                          on ? "border-border bg-secondary/40" : "border-border/50 bg-transparent",
-                        )}
-                      >
-                        <span
-                          className="mt-1 h-3 w-3 shrink-0 rounded-sm"
-                          style={{
-                            backgroundColor: on ? t.color : "transparent",
-                            border: `1px solid ${t.color}`,
-                          }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-semibold">{t.name}</span>
-                            <span className="tabular rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                              {zoneCount(t.id)}
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                            {t.description}
-                          </p>
-                        </div>
+                {(["free", "premium"] as const).map((tier) => {
+                  const tierTools = TOOLS.filter((t) => t.tier === tier);
+                  return (
+                    <div key={tier} className="mb-4">
+                      {/* Tier header */}
+                      <div className="mb-2 flex items-center gap-2">
                         <span
                           className={cn(
-                            "mt-0.5 flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors",
-                            on ? "bg-primary" : "bg-secondary",
+                            "rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest",
+                            tier === "free"
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : "bg-amber-500/15 text-amber-400",
                           )}
                         >
-                          <span
-                            className={cn(
-                              "h-3 w-3 rounded-full bg-background transition-transform",
-                              on && "translate-x-3",
-                            )}
-                          />
+                          {tier === "free" ? "Free" : "Premium"}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+
+                      <div className="space-y-2">
+                        {tierTools.map((t) => {
+                          const on = enabled.has(t.id);
+                          return (
+                            <button
+                              key={t.id}
+                              onClick={() => toggle(t.id)}
+                              className={cn(
+                                "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+                                on ? "border-border bg-secondary/40" : "border-border/50 bg-transparent",
+                              )}
+                            >
+                              <span
+                                className="mt-1 h-3 w-3 shrink-0 rounded-sm"
+                                style={{
+                                  backgroundColor: on ? t.color : "transparent",
+                                  border: `1px solid ${t.color}`,
+                                }}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-sm font-semibold">{t.name}</span>
+                                  <span className="tabular rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                    {zoneCount(t.id)}
+                                  </span>
+                                </div>
+                                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                                  {t.description}
+                                </p>
+                              </div>
+                              <span
+                                className={cn(
+                                  "mt-0.5 flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors",
+                                  on ? "bg-primary" : "bg-secondary",
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "h-3 w-3 rounded-full bg-background transition-transform",
+                                    on && "translate-x-3",
+                                  )}
+                                />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
 
                 <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-3">
                   <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
