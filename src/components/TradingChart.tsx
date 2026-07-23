@@ -476,7 +476,7 @@ export function TradingChart({
       {/* Candle countdown timer — sits just below the price badge, same width as price axis */}
       {formattedTime && priceY != null && scaleWidth > 0 && (
         <div
-          className="pointer-events-none absolute z-10 flex items-center justify-center bg-[#1b2436] py-[3px] text-[12px] font-medium tabular-nums text-[#a9b3c4]"
+          className="pointer-events-none absolute z-10 flex items-center justify-center bg-[#1b2436] py-[2px] text-[11px] font-medium tabular-nums text-[#38bdf8]"
           style={{ top: priceY + 14, right: 0, width: scaleWidth }}
         >
           {formattedTime}
