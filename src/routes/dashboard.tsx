@@ -173,7 +173,7 @@ function Dashboard() {
                 <span className="mb-1 text-sm text-muted-foreground">/month</span>
               </div>
               <ul className="mt-5 flex-1 space-y-2.5 text-sm text-muted-foreground">
-                {["Liquidity Zones", "Points of Interest (POI)", "Break of Structure (BOS)"].map((f) => (
+                {["Inducement (IDM)", "Fair Value Gaps (FVG)", "Liquidity Zones", "Points of Interest (POI)", "Break of Structure (BOS)"].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
                     {f}
