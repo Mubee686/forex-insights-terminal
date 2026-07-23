@@ -472,12 +472,9 @@ export function TradingChart({
       {/* Candle countdown timer — sits just below the price badge on the Y-axis */}
       {formattedTime && priceY != null && (
         <div
-          className="pointer-events-none absolute z-10 flex items-center gap-1 rounded bg-[#1b2436] px-1.5 py-0.5 text-[10px] tabular-nums text-[#a9b3c4]"
+          className="pointer-events-none absolute z-10 rounded bg-[#1b2436] px-2.5 py-1 text-[13px] font-medium tabular-nums text-[#a9b3c4]"
           style={{ top: priceY + 14, right: 0 }}
         >
-          <svg className="h-2.5 w-2.5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-          </svg>
           {formattedTime}
         </div>
       )}
