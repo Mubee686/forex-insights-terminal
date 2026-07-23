@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Activity, LogOut, LineChart, Copy, ShieldCheck, Mail } from "lucide-react";
+import { Activity, LogOut, LineChart, Copy, ShieldCheck, Mail, CheckCircle2, Zap, Crown } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,11 @@ function Dashboard() {
   const [code, setCode] = useState<string | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
   const [name, setName] = useState<string | null>(null);
+  const contactRef = useRef<HTMLDivElement>(null);
+
+  function scrollToContact() {
+    contactRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
@@ -152,7 +157,78 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        {/* ── Membership Plans ─────────────────────────────────────────── */}
+        <div>
+          <h2 className="mb-4 text-xl font-semibold text-foreground">Membership Plans</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+
+            {/* Standard — $25 */}
+            <div className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="h-5 w-5 text-primary" />
+                <span className="text-sm font-semibold uppercase tracking-widest text-primary">Standard</span>
+              </div>
+              <div className="mt-2 flex items-end gap-1">
+                <span className="text-4xl font-bold text-foreground">$25</span>
+                <span className="mb-1 text-sm text-muted-foreground">/month</span>
+              </div>
+              <ul className="mt-5 flex-1 space-y-2.5 text-sm text-muted-foreground">
+                {["Liquidity Zones", "Points of Interest (POI)", "Break of Structure (BOS)"].map((f) => (
+                  <li key={f} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={scrollToContact}
+                className="mt-6 w-full rounded-lg bg-primary/10 border border-primary/30 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+              >
+                Buy Standard
+              </button>
+            </div>
+
+            {/* Pro — $50 */}
+            <div className="relative flex flex-col rounded-2xl border border-primary/40 bg-card p-6 shadow-[0_0_30px_-10px_oklch(0.78_0.13_195/0.25)]">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[11px] font-bold uppercase tracking-widest text-primary-foreground">
+                Best Value
+              </div>
+              <div className="flex items-center gap-2 mb-1">
+                <Crown className="h-5 w-5 text-primary" />
+                <span className="text-sm font-semibold uppercase tracking-widest text-primary">Pro</span>
+              </div>
+              <div className="mt-2 flex items-end gap-1">
+                <span className="text-4xl font-bold text-foreground">$50</span>
+                <span className="mb-1 text-sm text-muted-foreground">/month</span>
+              </div>
+              <ul className="mt-5 flex-1 space-y-2.5 text-sm text-muted-foreground">
+                {[
+                  "Inducement (IDM)",
+                  "Break of Structure (BOS)",
+                  "Liquidity Zones",
+                  "Fair Value Gaps (FVG)",
+                  "Points of Interest (POI)",
+                  "Order Blocks",
+                  "Change of Character (CHoCH)",
+                ].map((f) => (
+                  <li key={f} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={scrollToContact}
+                className="mt-6 w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Buy Pro
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <div ref={contactRef} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <Mail className="h-5 w-5 text-primary" /> How to activate your membership
           </h2>
