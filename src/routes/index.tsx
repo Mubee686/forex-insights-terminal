@@ -288,33 +288,39 @@ function Terminal() {
               <span className="rounded bg-secondary/60 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                 {tf.label}
               </span>
-              <span className="flex items-center gap-1 rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                <Timer className="h-2.5 w-2.5 shrink-0" />
-                {formattedTime}
-              </span>
             </div>
 
             {livePrice != null && (
-              <div className="flex items-baseline gap-2">
-                <span
-                  key={flash}
-                  className={cn(
-                    "tabular text-lg font-semibold transition-smooth",
-                    flash === "up" && "price-flash-up",
-                    flash === "down" && "price-flash-down",
-                  )}
-                >
-                  {formatPrice(livePrice, pair.digits)}
-                </span>
-                <span
-                  className={cn(
-                    "tabular text-sm font-medium",
-                    change >= 0 ? "text-bull" : "text-bear",
-                  )}
-                >
-                  {change >= 0 ? "+" : ""}
-                  {change.toFixed(2)}%
-                </span>
+              <div className="flex items-stretch overflow-hidden rounded border border-border bg-secondary/40">
+                {/* Price + change */}
+                <div className="flex items-baseline gap-2 px-2.5 py-1">
+                  <span
+                    key={flash}
+                    className={cn(
+                      "tabular text-lg font-semibold transition-smooth",
+                      flash === "up" && "price-flash-up",
+                      flash === "down" && "price-flash-down",
+                    )}
+                  >
+                    {formatPrice(livePrice, pair.digits)}
+                  </span>
+                  <span
+                    className={cn(
+                      "tabular text-sm font-medium",
+                      change >= 0 ? "text-bull" : "text-bear",
+                    )}
+                  >
+                    {change >= 0 ? "+" : ""}
+                    {change.toFixed(2)}%
+                  </span>
+                </div>
+                {/* Divider */}
+                <div className="w-px self-stretch bg-border" />
+                {/* Timer */}
+                <div className="flex items-center gap-1 px-2.5 font-mono text-[10px] text-muted-foreground">
+                  <Timer className="h-2.5 w-2.5 shrink-0" />
+                  {formattedTime}
+                </div>
               </div>
             )}
 
