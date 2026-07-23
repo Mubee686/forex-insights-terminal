@@ -477,7 +477,7 @@ export function TradingChart({
       {formattedTime && priceY != null && scaleWidth > 0 && (
         <div
           className="pointer-events-none absolute z-10 flex items-center justify-center bg-[#1b2436] py-[2px] text-[11px] font-medium tabular-nums text-[#38bdf8]"
-          style={{ top: priceY + 14, right: 0, width: scaleWidth }}
+          style={{ top: priceY + 14, right: 0, width: scaleWidth - 6 }}
         >
           {formattedTime}
         </div>
