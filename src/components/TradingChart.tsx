@@ -167,6 +167,17 @@ export function TradingChart({
   // Y-coordinate (px) of the current price on the chart, for timer placement
   const [priceY, setPriceY] = useState<number | null>(null);
 
+  // ── price-Y updater — called on every event that can shift the Y scale ──
+  const updatePriceY = useRef<() => void>(() => {});
+  updatePriceY.current = () => {
+    const series = seriesRef.current;
+    const cs = candlesRef.current;
+    if (!series || cs.length === 0) return;
+    const lastClose = cs[cs.length - 1].close;
+    const y = series.priceToCoordinate(lastClose);
+    setPriceY(y ?? null);
+  };
+
   // ── overlay drawing ───────────────────────────────────────────────────────
   const drawOverlay = useRef<() => void>(() => {});
   drawOverlay.current = () => {
@@ -308,13 +319,23 @@ export function TradingChart({
       if (w > 0 && h > 0) {
         chart.resize(w, h);
         drawOverlay.current();
+        updatePriceY.current();
       }
     });
     ro.observe(container);
     chart.resize(container.clientWidth, container.clientHeight);
 
-    const onRange = () => drawOverlay.current();
+    const onRange = () => { drawOverlay.current(); updatePriceY.current(); };
     chart.timeScale().subscribeVisibleLogicalRangeChange(onRange);
+
+    // rAF loop — recalcs priceY every frame so vertical pan/zoom never
+    // desynchronises the timer badge (no price-scale-change API in this lib version)
+    let rafId: number;
+    const rafLoop = () => {
+      updatePriceY.current();
+      rafId = requestAnimationFrame(rafLoop);
+    };
+    rafId = requestAnimationFrame(rafLoop);
 
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.seriesData.size) {
@@ -352,6 +373,7 @@ export function TradingChart({
     }
 
     return () => {
+      cancelAnimationFrame(rafId);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
       ro.disconnect();
       chart.remove();
@@ -390,13 +412,7 @@ export function TradingChart({
 
     prevCandlesRef.current = candles;
     drawOverlay.current();
-
-    // Update the Y-coordinate of the live price for the timer overlay
-    const lastClose = candles[candles.length - 1]?.close;
-    if (lastClose != null && seriesRef.current) {
-      const y = seriesRef.current.priceToCoordinate(lastClose);
-      setPriceY(y ?? null);
-    }
+    updatePriceY.current();
   }, [candles]);
 
   // ── swap series type (candlestick ⇄ line) without recreating the chart ──
