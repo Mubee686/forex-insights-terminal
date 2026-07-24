@@ -255,35 +255,51 @@ export function TradingChart({
         if (y == null) continue;
 
         if (z.tool === "idm") {
-          // ── IDM: horizontal line at swing high/low, same method as BOS/CHoCH ──
+          // ── IDM: dashed horizontal price-level line ───────────────────────
           const swept = !!z.swept;
           const lineAlpha = swept ? 0.3 : 0.9;
           const fillAlpha = swept ? 0.35 : 0.95;
 
-          // Dashed horizontal line from the IDM candle rightward to the chart edge.
-          // x0 is clamped to 0 so it never extends left of the visible canvas, but
-          // it never reaches into candles that predate the IDM formation.
-          const idmX = Math.max(0, x0);
+          // Right edge: end exactly at the sweep candle when mitigated,
+          // otherwise extend to the live right edge of the chart.
+          const xRight = swept && z.sweepIndex != null
+            ? (xOf(z.sweepIndex) ?? x1)
+            : x1;
+
+          // Clamp line start to the canvas left boundary so the line never
+          // extends into candles that predate the IDM formation.
+          const lineStart = Math.max(0, x0);
+          const lineEnd   = Math.max(lineStart, xRight);
+
+          // Skip if the entire zone is scrolled off screen
+          if (swept && lineEnd <= 0) continue;
+
+          // Dashed horizontal line
           ctx.strokeStyle = hexToRgba(color, lineAlpha);
           ctx.lineWidth = 1.5;
           ctx.setLineDash([8, 4]);
           ctx.beginPath();
-          ctx.moveTo(idmX, y);
-          ctx.lineTo(x1, y);
+          ctx.moveTo(lineStart, y);
+          ctx.lineTo(lineEnd, y);
           ctx.stroke();
           ctx.setLineDash([]);
 
-          // Small filled circle at the IDM candle origin to anchor the line
-          ctx.fillStyle = hexToRgba(color, fillAlpha);
-          ctx.beginPath();
-          ctx.arc(x0, y, 3, 0, Math.PI * 2);
-          ctx.fill();
+          // Filled circle anchoring the line at the IDM candle
+          // (only when the candle is within the visible pane)
+          if (x0 >= 0 && x0 <= x1) {
+            ctx.fillStyle = hexToRgba(color, fillAlpha);
+            ctx.beginPath();
+            ctx.arc(x0, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
 
-          // Label — "IDM" or "IDM ✓"
+          // Label: "IDM" (active) or "IDM ✓" (swept).
+          // Pin label to IDM candle; clamp so it stays inside the visible pane.
+          const labelX = Math.max(4, Math.min(x0 + 8, x1 - 46));
           ctx.fillStyle = hexToRgba(color, fillAlpha);
           ctx.font = "bold 10px ui-sans-serif, system-ui, sans-serif";
           ctx.textBaseline = "bottom";
-          ctx.fillText(z.label, x0 + 8, y - 2);
+          ctx.fillText(z.label, labelX, y - 3);
 
         } else {
           // ── Generic line zone (BOS, CHoCH, LQ lines) ─────────────────

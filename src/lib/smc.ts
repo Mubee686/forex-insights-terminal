@@ -19,6 +19,7 @@ export interface Zone {
   detail: string;
   // IDM-specific
   swept?: boolean;
+  sweepIndex?: number; // candle index where price first traded through the IDM level
 }
 
 export interface ToolMeta {
@@ -345,19 +346,21 @@ function detectIDM(candles: Candle[], _swings: Swing[], lastIndex: number): Zone
         // Pick the LOWEST of the candidates — deepest liquidity pool
         const idm = candidates.reduce((best, s) => (s.price < best.price ? s : best));
 
-        // Check if price has already swept this IDM (wick below it)
-        const swept = candles
-          .slice(idm.index + 1)
-          .some((c) => c.low < idm.price);
+        // Find the first candle after the IDM that wicked below it (the sweep candle)
+        const candlesAfter = candles.slice(idm.index + 1);
+        const sweepOffset = candlesAfter.findIndex((c) => c.low < idm.price);
+        const swept = sweepOffset !== -1;
+        const sweepIndex = swept ? idm.index + 1 + sweepOffset : undefined;
 
         zones.push({
           id: `idm-bull-${idm.index}`,
           tool: "idm",
           kind: "bullish",
           startIndex: idm.index,
-          endIndex: lastIndex,
+          endIndex: swept ? sweepIndex! : lastIndex,
           price: idm.price,
           swept,
+          sweepIndex,
           label: swept ? "IDM ✓" : "IDM",
           detail: swept
             ? "Bullish inducement swept — SM grabbed stops, expect HH"
@@ -387,18 +390,21 @@ function detectIDM(candles: Candle[], _swings: Swing[], lastIndex: number): Zone
         // Pick the HIGHEST candidate — most prominent stop cluster
         const idm = candidates.reduce((best, s) => (s.price > best.price ? s : best));
 
-        const swept = candles
-          .slice(idm.index + 1)
-          .some((c) => c.high > idm.price);
+        // Find the first candle after the IDM that wicked above it (the sweep candle)
+        const candlesAfter = candles.slice(idm.index + 1);
+        const sweepOffset = candlesAfter.findIndex((c) => c.high > idm.price);
+        const swept = sweepOffset !== -1;
+        const sweepIndex = swept ? idm.index + 1 + sweepOffset : undefined;
 
         zones.push({
           id: `idm-bear-${idm.index}`,
           tool: "idm",
           kind: "bearish",
           startIndex: idm.index,
-          endIndex: lastIndex,
+          endIndex: swept ? sweepIndex! : lastIndex,
           price: idm.price,
           swept,
+          sweepIndex,
           label: swept ? "IDM ✓" : "IDM",
           detail: swept
             ? "Bearish inducement swept — SM grabbed stops, expect LL"
