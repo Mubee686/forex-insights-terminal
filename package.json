@@ -9,7 +9,9 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build:cloudflare": "NITRO_PRESET=cloudflare-module vite build",
+    "deploy:cloudflare": "bun run build:cloudflare && wrangler deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
