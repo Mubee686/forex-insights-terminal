@@ -103,7 +103,17 @@ function Terminal() {
   const pair = getPair(symbol);
   const tf = getTimeframe(timeframeId);
 
-  const analysis = useMemo(() => analyze(candles), [candles]);
+  const analysis = useMemo(() => {
+    const result = analyze(candles);
+    if (result.idm.length > 0) {
+      result.idm.forEach((z) =>
+        console.log(`[IDM] ${z.kind} | price: ${z.price} | candle index: ${z.startIndex} | swept: ${z.swept}`)
+      );
+    } else {
+      console.log("[IDM] No IDM detected for current candles");
+    }
+    return result;
+  }, [candles]);
   const zones = useMemo(() => zonesForTools(analysis, enabled), [analysis, enabled]);
 
   const last = candles[candles.length - 1];
