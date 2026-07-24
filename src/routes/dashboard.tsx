@@ -82,9 +82,7 @@ function Dashboard() {
     <div className="auth-bg min-h-screen w-full">
       <header className="relative z-10 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur">
         <Link to="/" className="flex items-center gap-2 text-primary">
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
-            <Activity className="h-4 w-4" />
-          </span>
+          <img src="/logo.png" alt="MF SMC Trader" className="h-8 w-8 rounded-md object-contain" />
           <span className="text-sm font-semibold text-foreground">MF SMC Trader</span>
         </Link>
         <div className="flex items-center gap-2">
