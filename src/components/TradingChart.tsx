@@ -23,7 +23,7 @@ import {
 
 import type { Candle } from "@/lib/forex";
 import { formatPrice } from "@/lib/forex";
-import { TOOLS, type Zone } from "@/lib/smc";
+import { TOOLS, detectAllBOS, type Zone } from "@/lib/smc";
 
 export type ChartType = "candlestick" | "line";
 
@@ -303,65 +303,9 @@ export function TradingChart({
           ctx.fillText(z.label, labelX, y - 3);
 
         } else if (z.tool === "bos" || z.tool === "choch") {
-          // ── BOS / CHoCH: line from swing → break candle + badge label ─
-          // Skip entirely if the price level is outside the visible canvas.
-          if (y < 0 || y > cssH) continue;
-
-          // Line ends at the break candle (endIndex), not the right edge.
-          const xBreak = xOf(z.endIndex);
-          const lineStart = Math.max(0, x0);
-          const lineEnd = xBreak != null ? Math.max(lineStart, xBreak) : x1;
-
-          // Dashed horizontal line at the broken swing level
-          ctx.strokeStyle = hexToRgba(color, 0.85 * alpha);
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([5, 3]);
-          ctx.beginPath();
-          ctx.moveTo(lineStart, y);
-          ctx.lineTo(lineEnd, y);
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // Small circle at the swing origin (when it's visible)
-          if (x0 >= 0 && x0 <= x1) {
-            ctx.fillStyle = hexToRgba(color, 0.7 * alpha);
-            ctx.beginPath();
-            ctx.arc(x0, y, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          // Label badge pinned to the break candle
-          if (xBreak != null && xBreak >= 0 && xBreak <= x1) {
-            const labelText = z.label; // "BOS" or "CHoCH"
-            ctx.font = "bold 10px ui-sans-serif, system-ui, sans-serif";
-            const textW = ctx.measureText(labelText).width;
-            const padX = 5;
-            const padY = 2;
-            const badgeW = textW + padX * 2;
-            const badgeH = 15;
-            // Bullish BOS label above the line, bearish BOS below
-            const isBull = z.kind === "bullish";
-            const badgeX = xBreak - badgeW / 2;
-            const badgeY = isBull ? y - badgeH - 4 : y + 4;
-
-            // Badge fill
-            ctx.fillStyle = hexToRgba(color, 0.9 * alpha);
-            ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
-
-            // Badge text (dark text on coloured background)
-            ctx.fillStyle = "rgba(10,14,20,0.95)";
-            ctx.textBaseline = "top";
-            ctx.fillText(labelText, badgeX + padX, badgeY + padY + 1);
-
-            // Tiny vertical tick from line to badge
-            ctx.strokeStyle = hexToRgba(color, 0.5 * alpha);
-            ctx.lineWidth = 1;
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.moveTo(xBreak, y);
-            ctx.lineTo(xBreak, isBull ? badgeY + badgeH : badgeY);
-            ctx.stroke();
-          }
+          // BOS / CHoCH are drawn dynamically below — skip here to avoid
+          // double-drawing with the zones-prop (which may still carry them).
+          continue;
 
         } else {
           // ── Generic line zone (LQ lines, etc.) ───────────────────────
@@ -377,6 +321,102 @@ export function TradingChart({
           ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
           ctx.textBaseline = "bottom";
           ctx.fillText(z.label, x0 + 4, y - 2);
+        }
+      }
+    }
+
+    // ── Dynamic BOS / CHoCH: recomputed from the visible candle range ─────
+    // We always run detection on ALL candles so trend context is correct, but
+    // only draw zones whose line segment intersects the current viewport.
+    if (cs.length >= 10) {
+      const visRange = ts.getVisibleLogicalRange();
+      const visFrom = visRange ? Math.floor(visRange.from) - 1 : 0;
+      const visTo   = visRange ? Math.ceil(visRange.to)  + 1 : cs.length - 1;
+
+      const { bos: bosAll, choch: chochAll } = detectAllBOS(cs);
+      // Only show BOS/CHoCH whose tools are currently enabled
+      const enabledTools = new Set(zonesRef.current.map((z) => z.tool));
+      const bosEnabled   = enabledTools.has("bos");
+      const chochEnabled = enabledTools.has("choch");
+
+      // Collect enabled zones that cross the visible area
+      const visibleBOS: Zone[] = [];
+      if (bosEnabled)   visibleBOS.push(...bosAll.filter((z) => z.endIndex >= visFrom && z.startIndex <= visTo));
+      if (chochEnabled) visibleBOS.push(...chochAll.filter((z) => z.endIndex >= visFrom && z.startIndex <= visTo));
+
+      for (const z of visibleBOS) {
+        if (z.price == null) continue;
+        const y = yOf(z.price);
+        if (y == null || y < -20 || y > cssH + 20) continue;
+
+        const color = toolColor(z.tool);
+        const xSwing = xOf(z.startIndex); // swing origin (left anchor)
+        const xBreak = xOf(z.endIndex);   // break candle  (right anchor)
+
+        // Clamp to canvas edges
+        const lineStart = xSwing != null ? Math.max(0, xSwing) : 0;
+        const lineEnd   = xBreak != null ? Math.min(paneRight, xBreak) : paneRight;
+        if (lineEnd <= 0 || lineStart >= paneRight) continue;
+
+        // ── Horizontal line from swing level to break candle ─────────────
+        ctx.strokeStyle = hexToRgba(color, 0.9);
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([7, 4]);
+        ctx.beginPath();
+        ctx.moveTo(lineStart, y);
+        ctx.lineTo(lineEnd, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // ── Circle at swing origin ────────────────────────────────────────
+        if (xSwing != null && xSwing >= 0 && xSwing <= paneRight) {
+          ctx.fillStyle = hexToRgba(color, 0.95);
+          ctx.beginPath();
+          ctx.arc(xSwing, y, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // ── Label badge at break candle ───────────────────────────────────
+        if (xBreak != null && xBreak >= 0 && xBreak <= paneRight) {
+          const labelText = z.label; // "BOS" or "CHoCH"
+          ctx.font = "bold 11px ui-sans-serif, system-ui, sans-serif";
+          const textW  = ctx.measureText(labelText).width;
+          const padX   = 6;
+          const badgeW = textW + padX * 2;
+          const badgeH = 18;
+          const isBull = z.kind === "bullish";
+          // Centre badge on break candle; clamp so it stays inside the pane
+          const badgeX = Math.max(0, Math.min(xBreak - badgeW / 2, paneRight - badgeW));
+          const badgeY = isBull ? y - badgeH - 6 : y + 6;
+
+          // Rounded rectangle badge
+          const r = 3;
+          ctx.fillStyle = hexToRgba(color, 0.92);
+          ctx.beginPath();
+          ctx.moveTo(badgeX + r, badgeY);
+          ctx.lineTo(badgeX + badgeW - r, badgeY);
+          ctx.quadraticCurveTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + r);
+          ctx.lineTo(badgeX + badgeW, badgeY + badgeH - r);
+          ctx.quadraticCurveTo(badgeX + badgeW, badgeY + badgeH, badgeX + badgeW - r, badgeY + badgeH);
+          ctx.lineTo(badgeX + r, badgeY + badgeH);
+          ctx.quadraticCurveTo(badgeX, badgeY + badgeH, badgeX, badgeY + badgeH - r);
+          ctx.lineTo(badgeX, badgeY + r);
+          ctx.quadraticCurveTo(badgeX, badgeY, badgeX + r, badgeY);
+          ctx.closePath();
+          ctx.fill();
+
+          // Badge text
+          ctx.fillStyle = "rgba(5,10,18,0.95)";
+          ctx.textBaseline = "middle";
+          ctx.fillText(labelText, badgeX + padX, badgeY + badgeH / 2 + 0.5);
+
+          // Vertical tick from line to badge
+          ctx.strokeStyle = hexToRgba(color, 0.55);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(xBreak, y);
+          ctx.lineTo(xBreak, isBull ? badgeY + badgeH : badgeY);
+          ctx.stroke();
         }
       }
     }

@@ -96,7 +96,7 @@ interface Swing {
   type: "high" | "low";
 }
 
-function findSwings(candles: Candle[], span = 2): Swing[] {
+export function findSwings(candles: Candle[], span = 2): Swing[] {
   const swings: Swing[] = [];
   for (let i = span; i < candles.length - span; i++) {
     let isHigh = true;
@@ -462,6 +462,77 @@ function detectPOI(orderBlocks: Zone[], fvgs: Zone[]): Zone[] {
     }
   }
   return zones.slice(-4);
+}
+
+/**
+ * Returns ALL detected BOS and CHoCH zones for the given candle set with no
+ * count cap.  Used by TradingChart to dynamically filter by the visible
+ * logical range on every pan / zoom so historical BOS is always shown when
+ * the user scrolls left.
+ */
+export function detectAllBOS(candles: Candle[]): { bos: Zone[]; choch: Zone[] } {
+  if (candles.length < 10) return { bos: [], choch: [] };
+  const swings = findSwings(candles, 2);
+
+  const bos: Zone[] = [];
+  const choch: Zone[] = [];
+
+  let lastHigh: Swing | null = null;
+  let lastLow: Swing | null = null;
+  let trend: "up" | "down" | null = null;
+  let nextHighMinIdx = 0;
+  let nextLowMinIdx  = 0;
+
+  for (let i = 1; i < candles.length; i++) {
+    const c = candles[i];
+    const priorSwings = swings.filter((s) => s.index <= i - 1);
+
+    const candidateHigh = [...priorSwings]
+      .reverse()
+      .find((s) => s.type === "high" && s.index >= nextHighMinIdx);
+    if (candidateHigh) lastHigh = candidateHigh;
+
+    const candidateLow = [...priorSwings]
+      .reverse()
+      .find((s) => s.type === "low" && s.index >= nextLowMinIdx);
+    if (candidateLow) lastLow = candidateLow;
+
+    if (lastHigh && c.close > lastHigh.price) {
+      const isChoch = trend === "down";
+      const zone: Zone = {
+        id: `${isChoch ? "choch" : "bos"}-b-${i}`,
+        tool: isChoch ? "choch" : "bos",
+        kind: "bullish",
+        startIndex: lastHigh.index,
+        endIndex: i,
+        price: lastHigh.price,
+        label: isChoch ? "CHoCH" : "BOS",
+        detail: isChoch ? "Bullish reversal" : "Bullish continuation",
+      };
+      (isChoch ? choch : bos).push(zone);
+      nextHighMinIdx = i + 1;
+      trend = "up";
+      lastHigh = null;
+    } else if (lastLow && c.close < lastLow.price) {
+      const isChoch = trend === "up";
+      const zone: Zone = {
+        id: `${isChoch ? "choch" : "bos"}-s-${i}`,
+        tool: isChoch ? "choch" : "bos",
+        kind: "bearish",
+        startIndex: lastLow.index,
+        endIndex: i,
+        price: lastLow.price,
+        label: isChoch ? "CHoCH" : "BOS",
+        detail: isChoch ? "Bearish reversal" : "Bearish continuation",
+      };
+      (isChoch ? choch : bos).push(zone);
+      nextLowMinIdx = i + 1;
+      trend = "down";
+      lastLow = null;
+    }
+  }
+
+  return { bos, choch };
 }
 
 export interface AnalysisResult {
