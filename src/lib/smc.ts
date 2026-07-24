@@ -17,6 +17,8 @@ export interface Zone {
   price?: number;
   label: string;
   detail: string;
+  // IDM-specific
+  swept?: boolean;
 }
 
 export interface ToolMeta {
@@ -289,48 +291,124 @@ function detectLiquidity(candles: Candle[], swings: Swing[], lastIndex: number):
   return zones.slice(-6);
 }
 
-function detectIDM(candles: Candle[], swings: Swing[], lastIndex: number): Zone[] {
+/**
+ * IDM (Inducement) Detection
+ *
+ * Real SMC logic:
+ * 1. Identify the current trend via major swings (span=5).
+ * 2. In an uptrend leg: the IDM is the LOWEST minor swing low that formed
+ *    AFTER the last major swing low (the leg's base) and BEFORE current
+ *    price.  Smart money sweeps this minor low (grabbing stops) before
+ *    driving price to a new Higher High.
+ * 3. In a downtrend leg: the IDM is the HIGHEST minor swing high that
+ *    formed AFTER the last major swing high (the leg's top) and BEFORE
+ *    current price.  SM sweeps this minor high before driving to a new
+ *    Lower Low.
+ * 4. "Swept" = any candle AFTER the IDM candle has wicked through it
+ *    (low < IDM price for bullish / high > IDM price for bearish).
+ * 5. Recalculated on every candle close → always reflects the latest IDM.
+ */
+function detectIDM(candles: Candle[], _swings: Swing[], lastIndex: number): Zone[] {
+  if (candles.length < 15) return [];
+
+  // Major swings for trend direction (span=5 = more significant pivots)
+  const majorSwings = findSwings(candles, 5);
+  // Minor swings for IDM candidates (span=2 = internal pivots)
+  const minorSwings = findSwings(candles, 2);
+
+  const majorHighs = majorSwings.filter((s) => s.type === "high");
+  const majorLows  = majorSwings.filter((s) => s.type === "low");
+  const minorHighs = minorSwings.filter((s) => s.type === "high");
+  const minorLows  = minorSwings.filter((s) => s.type === "low");
+
   const zones: Zone[] = [];
-  const highs = swings.filter((s) => s.type === "high");
-  const lows = swings.filter((s) => s.type === "low");
 
-  // Bearish IDM: a swing high that sits below the previous swing high
-  // (minor liquidity planted to lure buyers before a downward sweep)
-  for (let i = 1; i < highs.length; i++) {
-    if (highs[i].price < highs[i - 1].price) {
-      zones.push({
-        id: `idm-h-${highs[i].index}`,
-        tool: "idm",
-        kind: "bearish",
-        startIndex: highs[i].index,
-        endIndex: lastIndex,
-        price: highs[i].price,
-        label: "IDM",
-        detail: "Bearish inducement — minor high below prior high",
-      });
+  // ── UPTREND LEG ───────────────────────────────────────────────────────────
+  // We need at least two major lows (Higher Low pattern) and the last major
+  // high must come AFTER the last major low (price pushing up).
+  if (majorLows.length >= 1 && majorHighs.length >= 1) {
+    const lastMajorLow  = majorLows[majorLows.length - 1];
+    const lastMajorHigh = majorHighs[majorHighs.length - 1];
+
+    // Uptrend leg: last major LOW occurred before the last major HIGH
+    if (lastMajorLow.index < lastMajorHigh.index) {
+      // IDM candidates: minor lows that formed between the last major low
+      // and the last major high (the in-between liquidity pool)
+      const candidates = minorLows.filter(
+        (s) =>
+          s.index > lastMajorLow.index &&
+          s.index < lastMajorHigh.index &&
+          s.price > lastMajorLow.price, // must be above the major low
+      );
+
+      if (candidates.length > 0) {
+        // Pick the LOWEST of the candidates — deepest liquidity pool
+        const idm = candidates.reduce((best, s) => (s.price < best.price ? s : best));
+
+        // Check if price has already swept this IDM (wick below it)
+        const swept = candles
+          .slice(idm.index + 1)
+          .some((c) => c.low < idm.price);
+
+        zones.push({
+          id: `idm-bull-${idm.index}`,
+          tool: "idm",
+          kind: "bullish",
+          startIndex: idm.index,
+          endIndex: lastIndex,
+          price: idm.price,
+          swept,
+          label: swept ? "IDM ✓" : "IDM",
+          detail: swept
+            ? "Bullish inducement swept — SM grabbed stops, expect HH"
+            : "Bullish IDM — minor low, stops below targeted before new HH",
+        });
+      }
     }
   }
 
-  // Bullish IDM: a swing low that sits above the previous swing low
-  // (minor liquidity planted to lure sellers before an upward sweep)
-  for (let i = 1; i < lows.length; i++) {
-    if (lows[i].price > lows[i - 1].price) {
-      zones.push({
-        id: `idm-l-${lows[i].index}`,
-        tool: "idm",
-        kind: "bullish",
-        startIndex: lows[i].index,
-        endIndex: lastIndex,
-        price: lows[i].price,
-        label: "IDM",
-        detail: "Bullish inducement — minor low above prior low",
-      });
+  // ── DOWNTREND LEG ─────────────────────────────────────────────────────────
+  // Last major HIGH occurred before the last major LOW (price pushing down).
+  if (majorHighs.length >= 1 && majorLows.length >= 1) {
+    const lastMajorHigh = majorHighs[majorHighs.length - 1];
+    const lastMajorLow  = majorLows[majorLows.length - 1];
+
+    if (lastMajorHigh.index < lastMajorLow.index) {
+      // IDM candidates: minor highs between the last major high and last
+      // major low — the minor liquidity pool SM will sweep first
+      const candidates = minorHighs.filter(
+        (s) =>
+          s.index > lastMajorHigh.index &&
+          s.index < lastMajorLow.index &&
+          s.price < lastMajorHigh.price, // must be below the major high
+      );
+
+      if (candidates.length > 0) {
+        // Pick the HIGHEST candidate — most prominent stop cluster
+        const idm = candidates.reduce((best, s) => (s.price > best.price ? s : best));
+
+        const swept = candles
+          .slice(idm.index + 1)
+          .some((c) => c.high > idm.price);
+
+        zones.push({
+          id: `idm-bear-${idm.index}`,
+          tool: "idm",
+          kind: "bearish",
+          startIndex: idm.index,
+          endIndex: lastIndex,
+          price: idm.price,
+          swept,
+          label: swept ? "IDM ✓" : "IDM",
+          detail: swept
+            ? "Bearish inducement swept — SM grabbed stops, expect LL"
+            : "Bearish IDM — minor high, stops above targeted before new LL",
+        });
+      }
     }
   }
 
-  return zones
-    .sort((a, b) => a.startIndex - b.startIndex)
-    .slice(-6);
+  return zones;
 }
 
 function detectPOI(orderBlocks: Zone[], fvgs: Zone[]): Zone[] {

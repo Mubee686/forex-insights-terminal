@@ -223,42 +223,101 @@ export function TradingChart({
     };
 
     for (const z of zonesRef.current) {
-      const color = toolColor(z.tool);
+      const baseColor = toolColor(z.tool);
+      // Swept IDM renders faded; everything else at full opacity
+      const alpha = z.tool === "idm" && z.swept ? 0.35 : 1;
+      const color = baseColor;
+
       let x0 = xOf(z.startIndex);
       if (x0 == null) x0 = 0;
       const x1 = paneRight;
 
       if (z.priceHigh != null && z.priceLow != null) {
+        // ── Box zone (OB, FVG, POI, LQ) ──────────────────────────────────
         const yh = yOf(z.priceHigh);
         const yl = yOf(z.priceLow);
         if (yh == null || yl == null) continue;
         const top = Math.min(yh, yl);
         const h = Math.abs(yl - yh);
-        ctx.fillStyle = hexToRgba(color, 0.1);
+        ctx.fillStyle = hexToRgba(color, 0.1 * alpha);
         ctx.fillRect(x0, top, x1 - x0, h);
-        ctx.strokeStyle = hexToRgba(color, 0.85);
+        ctx.strokeStyle = hexToRgba(color, 0.85 * alpha);
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
         ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, h);
-        ctx.fillStyle = hexToRgba(color, 0.95);
+        ctx.fillStyle = hexToRgba(color, 0.95 * alpha);
         ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
         ctx.textBaseline = "bottom";
         ctx.fillText(z.label, x0 + 4, top - 1 > 10 ? top - 1 : top + 11);
+
       } else if (z.price != null) {
         const y = yOf(z.price);
         if (y == null) continue;
-        ctx.strokeStyle = hexToRgba(color, 0.9);
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 3]);
-        ctx.beginPath();
-        ctx.moveTo(x0, y);
-        ctx.lineTo(x1, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = hexToRgba(color, 0.95);
-        ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(z.label, x0 + 4, y - 2);
+
+        if (z.tool === "idm") {
+          // ── IDM: triangle marker at candle + dashed line ──────────────
+          const swept = !!z.swept;
+          const lineAlpha = swept ? 0.3 : 0.85;
+          const fillAlpha = swept ? 0.4 : 1.0;
+
+          // Dashed line from IDM candle to right edge
+          ctx.strokeStyle = hexToRgba(color, lineAlpha);
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x0, y);
+          ctx.lineTo(x1, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Triangle marker at the IDM candle
+          const triSize = 6;
+          ctx.fillStyle = hexToRgba(color, fillAlpha);
+          ctx.beginPath();
+          if (z.kind === "bullish") {
+            // Upward triangle below the line (pointing up = stop below)
+            ctx.moveTo(x0, y + triSize * 1.8);
+            ctx.lineTo(x0 - triSize, y + triSize * 3.2);
+            ctx.lineTo(x0 + triSize, y + triSize * 3.2);
+          } else {
+            // Downward triangle above the line (pointing down = stop above)
+            ctx.moveTo(x0, y - triSize * 1.8);
+            ctx.lineTo(x0 - triSize, y - triSize * 3.2);
+            ctx.lineTo(x0 + triSize, y - triSize * 3.2);
+          }
+          ctx.closePath();
+          ctx.fill();
+
+          // Vertical tick at the IDM candle
+          ctx.strokeStyle = hexToRgba(color, fillAlpha * 0.7);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x0, y - 10);
+          ctx.lineTo(x0, y + 10);
+          ctx.stroke();
+
+          // Label — "IDM" or "IDM ✓"
+          ctx.fillStyle = hexToRgba(color, fillAlpha);
+          ctx.font = `bold 10px ui-sans-serif, system-ui, sans-serif`;
+          ctx.textBaseline = "bottom";
+          const labelY = z.kind === "bullish" ? y - 3 : y - 3;
+          ctx.fillText(z.label, x0 + 10, labelY);
+
+        } else {
+          // ── Generic line zone (BOS, CHoCH, LQ lines) ─────────────────
+          ctx.strokeStyle = hexToRgba(color, 0.9 * alpha);
+          ctx.lineWidth = 1;
+          ctx.setLineDash([5, 3]);
+          ctx.beginPath();
+          ctx.moveTo(x0, y);
+          ctx.lineTo(x1, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = hexToRgba(color, 0.95 * alpha);
+          ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(z.label, x0 + 4, y - 2);
+        }
       }
     }
   };
