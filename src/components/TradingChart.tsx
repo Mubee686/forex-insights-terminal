@@ -255,53 +255,32 @@ export function TradingChart({
         if (y == null) continue;
 
         if (z.tool === "idm") {
-          // ── IDM: triangle marker at candle + dashed line ──────────────
+          // ── IDM: horizontal line at swing high/low, same method as BOS/CHoCH ──
           const swept = !!z.swept;
-          const lineAlpha = swept ? 0.3 : 0.85;
-          const fillAlpha = swept ? 0.4 : 1.0;
+          const lineAlpha = swept ? 0.3 : 0.9;
+          const fillAlpha = swept ? 0.35 : 0.95;
 
-          // Dashed line from IDM candle to right edge
+          // Dashed horizontal line from IDM candle to right edge
           ctx.strokeStyle = hexToRgba(color, lineAlpha);
           ctx.lineWidth = 1.5;
-          ctx.setLineDash([6, 4]);
+          ctx.setLineDash([8, 4]);
           ctx.beginPath();
           ctx.moveTo(x0, y);
           ctx.lineTo(x1, y);
           ctx.stroke();
           ctx.setLineDash([]);
 
-          // Triangle marker at the IDM candle
-          const triSize = 6;
+          // Small filled circle at the IDM candle origin to anchor the line
           ctx.fillStyle = hexToRgba(color, fillAlpha);
           ctx.beginPath();
-          if (z.kind === "bullish") {
-            // Upward triangle below the line (pointing up = stop below)
-            ctx.moveTo(x0, y + triSize * 1.8);
-            ctx.lineTo(x0 - triSize, y + triSize * 3.2);
-            ctx.lineTo(x0 + triSize, y + triSize * 3.2);
-          } else {
-            // Downward triangle above the line (pointing down = stop above)
-            ctx.moveTo(x0, y - triSize * 1.8);
-            ctx.lineTo(x0 - triSize, y - triSize * 3.2);
-            ctx.lineTo(x0 + triSize, y - triSize * 3.2);
-          }
-          ctx.closePath();
+          ctx.arc(x0, y, 3, 0, Math.PI * 2);
           ctx.fill();
-
-          // Vertical tick at the IDM candle
-          ctx.strokeStyle = hexToRgba(color, fillAlpha * 0.7);
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x0, y - 10);
-          ctx.lineTo(x0, y + 10);
-          ctx.stroke();
 
           // Label — "IDM" or "IDM ✓"
           ctx.fillStyle = hexToRgba(color, fillAlpha);
-          ctx.font = `bold 10px ui-sans-serif, system-ui, sans-serif`;
+          ctx.font = "bold 10px ui-sans-serif, system-ui, sans-serif";
           ctx.textBaseline = "bottom";
-          const labelY = z.kind === "bullish" ? y - 3 : y - 3;
-          ctx.fillText(z.label, x0 + 10, labelY);
+          ctx.fillText(z.label, x0 + 8, y - 2);
 
         } else {
           // ── Generic line zone (BOS, CHoCH, LQ lines) ─────────────────
