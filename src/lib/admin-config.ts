@@ -5,4 +5,4 @@
  *  - address the membership-expiry notification email
  *  - show the contact email on the dashboard
  */
-export const ADMIN_EMAIL = "m62804994@gmail.com";
+export const ADMIN_EMAIL = "mfsmctrader786@gmail.com";
