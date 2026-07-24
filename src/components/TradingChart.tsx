@@ -23,7 +23,7 @@ import {
 
 import type { Candle } from "@/lib/forex";
 import { formatPrice } from "@/lib/forex";
-import { TOOLS, detectAllBOS, type Zone } from "@/lib/smc";
+import { TOOLS, detectAllBOS, type Zone, type ToolId } from "@/lib/smc";
 
 export type ChartType = "candlestick" | "line";
 
@@ -37,6 +37,8 @@ interface Props {
   chartType?: ChartType;
   /** Candle countdown string from useCandleTimer, e.g. "04:37" */
   formattedTime?: string;
+  /** Which SMC tools are toggled on — gates BOS/CHoCH rendering without inferring from zone list. */
+  enabledTools: Set<ToolId>;
 }
 
 // ─── chart palette ───────────────────────────────────────────────────────────
@@ -145,6 +147,7 @@ export function TradingChart({
   isLoading,
   chartType = "candlestick",
   formattedTime,
+  enabledTools,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -156,9 +159,15 @@ export function TradingChart({
   const candlesRef = useRef<Candle[]>(candles);
   const zonesRef = useRef<Zone[]>(zones);
   const digitsRef = useRef<number>(digits);
+  const enabledToolsRef = useRef<Set<ToolId>>(enabledTools);
   candlesRef.current = candles;
   zonesRef.current = zones;
   digitsRef.current = digits;
+  enabledToolsRef.current = enabledTools;
+
+  // BOS detection cache — keyed by candle count + last timestamp so we only
+  // recompute when new data arrives, not on every pan / zoom / rAF tick.
+  const bosCacheRef = useRef<{ key: string; result: ReturnType<typeof detectAllBOS> } | null>(null);
 
   // Track previous candles to decide setData vs update
   const prevCandlesRef = useRef<Candle[]>([]);
@@ -325,50 +334,59 @@ export function TradingChart({
       }
     }
 
-    // ── Dynamic BOS / CHoCH: recomputed from the visible candle range ─────
-    // We always run detection on ALL candles so trend context is correct, but
-    // only draw zones whose line segment intersects the current viewport.
-    if (cs.length >= 10) {
+    // ── BOS / CHoCH: detect on full candle set, draw only visible range ────
+    // Detection runs on all candles so trend context is always correct.
+    // The result is cached (keyed by candle count + last timestamp) so it is
+    // never recomputed on pan, zoom, or rAF ticks — only when data changes.
+    // Every coordinate is derived from timeToCoordinate / priceToCoordinate so
+    // lines move exactly with the candles on every redraw.
+    const bosEnabled   = enabledToolsRef.current.has("bos");
+    const chochEnabled = enabledToolsRef.current.has("choch");
+
+    if (cs.length >= 10 && (bosEnabled || chochEnabled)) {
+      const cacheKey = `${cs.length}:${cs[cs.length - 1]?.time ?? 0}`;
+      if (!bosCacheRef.current || bosCacheRef.current.key !== cacheKey) {
+        bosCacheRef.current = { key: cacheKey, result: detectAllBOS(cs) };
+      }
+      const { bos: bosAll, choch: chochAll } = bosCacheRef.current.result;
+
+      // Filter to zones that overlap the visible logical (candle-index) range.
       const visRange = ts.getVisibleLogicalRange();
-      const visFrom = visRange ? Math.floor(visRange.from) - 1 : 0;
-      const visTo   = visRange ? Math.ceil(visRange.to)  + 1 : cs.length - 1;
+      const visFrom  = visRange ? Math.floor(visRange.from) : 0;
+      const visTo    = visRange ? Math.ceil(visRange.to)    : cs.length - 1;
 
-      const { bos: bosAll, choch: chochAll } = detectAllBOS(cs);
-      // Only show BOS/CHoCH whose tools are currently enabled
-      const enabledTools = new Set(zonesRef.current.map((z) => z.tool));
-      const bosEnabled   = enabledTools.has("bos");
-      const chochEnabled = enabledTools.has("choch");
-
-      // Collect enabled zones that cross the visible area
       const visibleBOS: Zone[] = [];
-      if (bosEnabled)   visibleBOS.push(...bosAll.filter((z) => z.endIndex >= visFrom && z.startIndex <= visTo));
+      if (bosEnabled)   visibleBOS.push(...bosAll.filter((z)  => z.endIndex >= visFrom && z.startIndex <= visTo));
       if (chochEnabled) visibleBOS.push(...chochAll.filter((z) => z.endIndex >= visFrom && z.startIndex <= visTo));
 
       for (const z of visibleBOS) {
         if (z.price == null) continue;
+        // y is derived from priceToCoordinate — always anchored to price data.
         const y = yOf(z.price);
         if (y == null || y < -20 || y > cssH + 20) continue;
 
         const color = toolColor(z.tool);
-        const xSwing = xOf(z.startIndex); // swing origin (left anchor)
-        const xBreak = xOf(z.endIndex);   // break candle  (right anchor)
 
-        // Clamp to canvas edges
+        // x coordinates come from timeToCoordinate on the candle's timestamp —
+        // they automatically follow the candle on every pan / zoom / resize.
+        const xSwing = xOf(z.startIndex); // broken swing level origin
+        const xBreak = xOf(z.endIndex);   // candle that closed through the level
+
+        // Clamp visible portion to canvas bounds
         const lineStart = xSwing != null ? Math.max(0, xSwing) : 0;
         const lineEnd   = xBreak != null ? Math.min(paneRight, xBreak) : paneRight;
         if (lineEnd <= 0 || lineStart >= paneRight) continue;
 
-        // ── Horizontal line from swing level to break candle ─────────────
+        // ── Solid horizontal line from swing origin to break candle ────────
         ctx.strokeStyle = hexToRgba(color, 0.9);
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([7, 4]);
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(lineStart, y);
         ctx.lineTo(lineEnd, y);
         ctx.stroke();
-        ctx.setLineDash([]);
 
-        // ── Circle at swing origin ────────────────────────────────────────
+        // ── Circle at swing origin (when on-screen) ────────────────────────
         if (xSwing != null && xSwing >= 0 && xSwing <= paneRight) {
           ctx.fillStyle = hexToRgba(color, 0.95);
           ctx.beginPath();
@@ -376,7 +394,7 @@ export function TradingChart({
           ctx.fill();
         }
 
-        // ── Label badge at break candle ───────────────────────────────────
+        // ── Label badge centred on the break candle ────────────────────────
         if (xBreak != null && xBreak >= 0 && xBreak <= paneRight) {
           const labelText = z.label; // "BOS" or "CHoCH"
           ctx.font = "bold 11px ui-sans-serif, system-ui, sans-serif";
@@ -385,11 +403,11 @@ export function TradingChart({
           const badgeW = textW + padX * 2;
           const badgeH = 18;
           const isBull = z.kind === "bullish";
-          // Centre badge on break candle; clamp so it stays inside the pane
+          // Clamp badge so it never spills outside the pane
           const badgeX = Math.max(0, Math.min(xBreak - badgeW / 2, paneRight - badgeW));
-          const badgeY = isBull ? y - badgeH - 6 : y + 6;
+          const badgeY = isBull ? y - badgeH - 5 : y + 5;
 
-          // Rounded rectangle badge
+          // Rounded rectangle
           const r = 3;
           ctx.fillStyle = hexToRgba(color, 0.92);
           ctx.beginPath();
@@ -410,8 +428,8 @@ export function TradingChart({
           ctx.textBaseline = "middle";
           ctx.fillText(labelText, badgeX + padX, badgeY + badgeH / 2 + 0.5);
 
-          // Vertical tick from line to badge
-          ctx.strokeStyle = hexToRgba(color, 0.55);
+          // Vertical tick from line to badge bottom/top edge
+          ctx.strokeStyle = hexToRgba(color, 0.5);
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(xBreak, y);
@@ -491,11 +509,23 @@ export function TradingChart({
     const onRange = () => { drawOverlay.current(); updatePriceY.current(); };
     chart.timeScale().subscribeVisibleLogicalRangeChange(onRange);
 
-    // rAF loop — recalcs priceY every frame so vertical pan/zoom never
-    // desynchronises the timer badge (no price-scale-change API in this lib version)
+    // rAF loop — detects vertical scale changes by watching whether the last
+    // candle's priceToCoordinate result shifted.  When it does, both the price
+    // badge and the overlay canvas are refreshed so BOS lines never drift.
+    // (lightweight-charts has no price-scale-change subscription in v4.)
     let rafId: number;
+    let lastRafPriceY: number | null | undefined = undefined;
     const rafLoop = () => {
-      updatePriceY.current();
+      const s = seriesRef.current;
+      const cs = candlesRef.current;
+      if (s && cs.length > 0) {
+        const y = s.priceToCoordinate(cs[cs.length - 1].close);
+        if (y !== lastRafPriceY) {
+          lastRafPriceY = y;
+          updatePriceY.current();  // update the DOM price badge
+          drawOverlay.current();   // redraw canvas so BOS lines follow candles
+        }
+      }
       rafId = requestAnimationFrame(rafLoop);
     };
     rafId = requestAnimationFrame(rafLoop);

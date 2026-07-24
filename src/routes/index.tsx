@@ -481,6 +481,7 @@ function Terminal() {
               isLoading={isLoading}
               chartType={chartType}
               formattedTime={formattedTime}
+              enabledTools={enabled}
             />
           </div>
         </main>
