@@ -260,14 +260,15 @@ export function TradingChart({
           const lineAlpha = swept ? 0.3 : 0.9;
           const fillAlpha = swept ? 0.35 : 0.95;
 
-          // Dashed horizontal line spanning full chart width at the IDM price level
-          // (x0 may be near the right edge if IDM candle is recent, so we start
-          // from 0 to make the line always fully visible; circle marks the candle)
+          // Dashed horizontal line from the IDM candle rightward to the chart edge.
+          // x0 is clamped to 0 so it never extends left of the visible canvas, but
+          // it never reaches into candles that predate the IDM formation.
+          const idmX = Math.max(0, x0);
           ctx.strokeStyle = hexToRgba(color, lineAlpha);
           ctx.lineWidth = 1.5;
           ctx.setLineDash([8, 4]);
           ctx.beginPath();
-          ctx.moveTo(0, y);
+          ctx.moveTo(idmX, y);
           ctx.lineTo(x1, y);
           ctx.stroke();
           ctx.setLineDash([]);
