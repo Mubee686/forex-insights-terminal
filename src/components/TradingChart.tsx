@@ -208,6 +208,7 @@ export function TradingChart({
     const cs = candlesRef.current;
     if (cs.length === 0) return;
 
+
     const ts = chart.timeScale();
     const paneRight = ts.width();
 
@@ -301,8 +302,69 @@ export function TradingChart({
           ctx.textBaseline = "bottom";
           ctx.fillText(z.label, labelX, y - 3);
 
+        } else if (z.tool === "bos" || z.tool === "choch") {
+          // ── BOS / CHoCH: line from swing → break candle + badge label ─
+          // Skip entirely if the price level is outside the visible canvas.
+          if (y < 0 || y > cssH) continue;
+
+          // Line ends at the break candle (endIndex), not the right edge.
+          const xBreak = xOf(z.endIndex);
+          const lineStart = Math.max(0, x0);
+          const lineEnd = xBreak != null ? Math.max(lineStart, xBreak) : x1;
+
+          // Dashed horizontal line at the broken swing level
+          ctx.strokeStyle = hexToRgba(color, 0.85 * alpha);
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([5, 3]);
+          ctx.beginPath();
+          ctx.moveTo(lineStart, y);
+          ctx.lineTo(lineEnd, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Small circle at the swing origin (when it's visible)
+          if (x0 >= 0 && x0 <= x1) {
+            ctx.fillStyle = hexToRgba(color, 0.7 * alpha);
+            ctx.beginPath();
+            ctx.arc(x0, y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Label badge pinned to the break candle
+          if (xBreak != null && xBreak >= 0 && xBreak <= x1) {
+            const labelText = z.label; // "BOS" or "CHoCH"
+            ctx.font = "bold 10px ui-sans-serif, system-ui, sans-serif";
+            const textW = ctx.measureText(labelText).width;
+            const padX = 5;
+            const padY = 2;
+            const badgeW = textW + padX * 2;
+            const badgeH = 15;
+            // Bullish BOS label above the line, bearish BOS below
+            const isBull = z.kind === "bullish";
+            const badgeX = xBreak - badgeW / 2;
+            const badgeY = isBull ? y - badgeH - 4 : y + 4;
+
+            // Badge fill
+            ctx.fillStyle = hexToRgba(color, 0.9 * alpha);
+            ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+
+            // Badge text (dark text on coloured background)
+            ctx.fillStyle = "rgba(10,14,20,0.95)";
+            ctx.textBaseline = "top";
+            ctx.fillText(labelText, badgeX + padX, badgeY + padY + 1);
+
+            // Tiny vertical tick from line to badge
+            ctx.strokeStyle = hexToRgba(color, 0.5 * alpha);
+            ctx.lineWidth = 1;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(xBreak, y);
+            ctx.lineTo(xBreak, isBull ? badgeY + badgeH : badgeY);
+            ctx.stroke();
+          }
+
         } else {
-          // ── Generic line zone (BOS, CHoCH, LQ lines) ─────────────────
+          // ── Generic line zone (LQ lines, etc.) ───────────────────────
           ctx.strokeStyle = hexToRgba(color, 0.9 * alpha);
           ctx.lineWidth = 1;
           ctx.setLineDash([5, 3]);
@@ -511,7 +573,7 @@ export function TradingChart({
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="absolute inset-0" />
-      <canvas ref={overlayRef} className="pointer-events-none absolute inset-0" />
+      <canvas ref={overlayRef} className="pointer-events-none absolute inset-0" style={{ zIndex: 2 }} />
 
       {legend && (
         <div className="pointer-events-none absolute left-2 top-2 z-10 flex gap-3 rounded-md bg-panel/80 px-2.5 py-1 text-[11px] backdrop-blur-sm">
