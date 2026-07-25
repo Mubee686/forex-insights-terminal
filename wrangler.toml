@@ -6,9 +6,7 @@ pages_build_output_dir = ".output/public"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# ── Build settings (used by Cloudflare Pages CI) ──────────────────────────────
-[build]
-command = "npm install && npm run build:cloudflare"
+# ── Build settings (used by Cloudflare Pages CI) ─────────────────────────────
 
 # ── Environment variables (non-secret) ────────────────────────────────────────
 # Secrets are set via the Cloudflare Dashboard → Settings → Environment Variables
