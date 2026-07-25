@@ -59,8 +59,18 @@ async function poll(symbol: string) {
     state.lastTick.set(symbol, tick);
     const subs = state.listeners.get(symbol);
     if (subs) for (const fn of subs) fn(tick);
-  } catch {
-    // Transient network/rate-limit errors — just skip this tick, next poll retries.
+  } catch (err) {
+    // Log non-trivial errors so they're visible in server output; transient
+    // rate-limit / network blips are expected and not worth alerting on.
+    const msg = err instanceof Error ? err.message : String(err);
+    const isTransient =
+      msg.includes("rate limit") ||
+      msg.includes("429") ||
+      msg.includes("ECONNRESET") ||
+      msg.includes("timeout");
+    if (!isTransient) {
+      console.warn(`[twelvedata] poll error for ${symbol}:`, msg);
+    }
   } finally {
     state.inFlight.delete(symbol);
   }

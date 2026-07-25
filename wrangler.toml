@@ -1,33 +1,23 @@
-# Cloudflare Workers — MF SMC Trader
-# Deploy karne ke liye: bun run deploy:cloudflare
-# Docs: https://developers.cloudflare.com/workers/
+# Cloudflare Pages — MF SMC Trader
+# Docs: https://developers.cloudflare.com/pages/
 
 name = "mf-smc-trader"
-main = ".output/server/index.mjs"
+pages_build_output_dir = ".output/public"
 compatibility_date = "2025-01-01"
-
-# nodejs_compat: process.env, crypto, URL, Buffer etc. enable karta hai
 compatibility_flags = ["nodejs_compat"]
 
-# Static assets (JS bundles, CSS, images) Worker ke sath serve honge
-[assets]
-directory = ".output/public"
-binding = "ASSETS"
+# ── Build settings (used by Cloudflare Pages CI) ──────────────────────────────
+[build]
+command = "npm install && npm run build:cloudflare"
 
-# ─── Environment Variables ─────────────────────────────────────────────────────
-# Sensitive values (API keys) KABHI yahan mat likho.
-# Inhe `wrangler secret put` command se set karo — niche deployment guide dekho.
-#
-# Public (non-secret) values yahan rakh sakte ho:
-# [vars]
-# SOME_PUBLIC_VAR = "value"
-
-# ─── Wrangler Secrets (run once, then wrangler stores them securely) ───────────
-# wrangler secret put TWELVEDATA_API_KEY
-# wrangler secret put SESSION_SECRET
-# wrangler secret put SUPABASE_URL
-# wrangler secret put SUPABASE_PUBLISHABLE_KEY
-# wrangler secret put SUPABASE_PROJECT_ID
-# wrangler secret put VITE_SUPABASE_URL
-# wrangler secret put VITE_SUPABASE_PUBLISHABLE_KEY
-# wrangler secret put VITE_SUPABASE_PROJECT_ID
+# ── Environment variables (non-secret) ────────────────────────────────────────
+# Secrets are set via the Cloudflare Dashboard → Settings → Environment Variables
+# (mark them as "Secret" so they are encrypted):
+#   TWELVEDATA_API_KEY
+#   SESSION_SECRET
+#   SUPABASE_URL
+#   SUPABASE_PUBLISHABLE_KEY
+#   SUPABASE_PROJECT_ID
+#   VITE_SUPABASE_URL
+#   VITE_SUPABASE_PUBLISHABLE_KEY
+#   VITE_SUPABASE_PROJECT_ID

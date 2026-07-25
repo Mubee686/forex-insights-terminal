@@ -56,29 +56,21 @@ export const amIAdmin = createServerFn({ method: "GET" })
     const { data: userData } = await sb.auth.getUser();
     const email = userData?.user?.email ?? "";
 
-    console.log("[amIAdmin] userId:", context.userId);
-    console.log("[amIAdmin] email from getUser:", email);
-    console.log("[amIAdmin] ADMIN_EMAIL:", ADMIN_EMAIL);
-
     // Primary check: user_roles table
-    const { data: roleData, error: roleError } = await sb
+    const { data: roleData } = await sb
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)
       .eq("role", "admin")
       .maybeSingle();
 
-    console.log("[amIAdmin] user_roles result:", roleData, "error:", roleError?.message);
-
     if (roleData) return { isAdmin: true };
 
     // Fallback: direct email match (works even if user_roles row is missing)
     if (email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-      console.log("[amIAdmin] granted via email fallback");
       return { isAdmin: true };
     }
 
-    console.log("[amIAdmin] denied");
     return { isAdmin: false };
   });
 

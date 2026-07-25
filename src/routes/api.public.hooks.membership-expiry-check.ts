@@ -54,8 +54,18 @@ export const Route = createFileRoute("/api/public/hooks/membership-expiry-check"
         const apiKey = process.env.LOVABLE_API_KEY;
         let sent = 0;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let sendLovableEmail: ((payload: any, opts: any) => Promise<void>) | null = null;
         if (apiKey) {
-          const { sendLovableEmail } = await import("@lovable.dev/email-js");
+          try {
+            const mod = await import("@lovable.dev/email-js" as string);
+            sendLovableEmail = mod.sendLovableEmail;
+          } catch {
+            console.warn("[expiry-check] @lovable.dev/email-js not available — skipping email");
+          }
+        }
+
+        if (apiKey && sendLovableEmail) {
           const senderDomain = process.env.LOVABLE_SENDER_DOMAIN;
           const from = senderDomain
             ? `MF SMC Trader <notify@${senderDomain}>`
