@@ -1,10 +1,13 @@
 # Cloudflare Pages — MF SMC Trader
 # Docs: https://developers.cloudflare.com/pages/
-
 name = "forex-insights-terminal"
-pages_build_output_dir = ".output/public"
+main = "dist/server/server.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "dist/client"
+binding = "ASSETS"
 
 # ── Build settings (used by Cloudflare Pages CI) ─────────────────────────────
 
