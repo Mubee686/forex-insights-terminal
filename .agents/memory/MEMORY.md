@@ -1,3 +1,4 @@
 - [Finnhub forex integration](finnhub-forex-provider.md) — free tier has no REST forex candles (403); WS ticks work; use `ws` package, not global `WebSocket`, in this Vite/Bun SSR runtime.
 - [Twelve Data forex provider](twelvedata-forex-provider.md) — WebSocket push is Pro-plan only; free tier needs REST `/price` polling instead for "live" ticks.
 - [Overlay canvas z-index](overlay-canvas-zindex.md) — must set zIndex:2 on overlay canvas or lightweight-charts' internal canvases render on top.
+- [TanStack route metadata](tanstack-route-metadata.md) — dev startup can reorder generated route metadata; stop the workflow before restoring a CSS-only diff.

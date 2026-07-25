@@ -37,70 +37,70 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
-  --background: oklch(0.17 0.018 258);
-  --foreground: oklch(0.93 0.01 250);
+  --background: #0b1220;
+  --foreground: #e8f0fb;
 
-  --card: oklch(0.205 0.02 258);
-  --card-foreground: oklch(0.93 0.01 250);
+  --card: #111d30;
+  --card-foreground: #e8f0fb;
 
-  --panel: oklch(0.195 0.019 258);
-  --panel-foreground: oklch(0.9 0.01 250);
+  --panel: #0e192b;
+  --panel-foreground: #dce8f7;
 
-  --popover: oklch(0.205 0.02 258);
-  --popover-foreground: oklch(0.93 0.01 250);
+  --popover: #142238;
+  --popover-foreground: #e8f0fb;
 
-  --primary: oklch(0.78 0.13 195);
-  --primary-foreground: oklch(0.17 0.018 258);
+  --primary: #38bdf8;
+  --primary-foreground: #06111f;
 
-  --secondary: oklch(0.26 0.022 258);
-  --secondary-foreground: oklch(0.9 0.01 250);
+  --secondary: #17263c;
+  --secondary-foreground: #dce8f7;
 
-  --muted: oklch(0.25 0.02 258);
-  --muted-foreground: oklch(0.66 0.02 255);
+  --muted: #182840;
+  --muted-foreground: #8fa5be;
 
-  --accent: oklch(0.28 0.03 258);
-  --accent-foreground: oklch(0.93 0.01 250);
+  --accent: #1c3857;
+  --accent-foreground: #f1f7ff;
 
-  --destructive: oklch(0.63 0.21 25);
-  --destructive-foreground: oklch(0.97 0.01 250);
+  --destructive: #fb7185;
+  --destructive-foreground: #fff1f2;
 
-  --border: oklch(0.29 0.02 258);
-  --input: oklch(0.29 0.02 258);
-  --ring: oklch(0.78 0.13 195);
+  --border: #263c58;
+  --input: #294563;
+  --ring: #22d3ee;
 
-  --bull: oklch(0.74 0.16 155);
-  --bear: oklch(0.66 0.2 22);
+  --bull: #2dd4bf;
+  --bear: #fb7185;
 
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 .dark {
-  --background: oklch(0.17 0.018 258);
-  --foreground: oklch(0.93 0.01 250);
-  --card: oklch(0.205 0.02 258);
-  --card-foreground: oklch(0.93 0.01 250);
-  --panel: oklch(0.195 0.019 258);
-  --panel-foreground: oklch(0.9 0.01 250);
-  --popover: oklch(0.205 0.02 258);
-  --popover-foreground: oklch(0.93 0.01 250);
-  --primary: oklch(0.78 0.13 195);
-  --primary-foreground: oklch(0.17 0.018 258);
-  --secondary: oklch(0.26 0.022 258);
-  --secondary-foreground: oklch(0.9 0.01 250);
-  --muted: oklch(0.25 0.02 258);
-  --muted-foreground: oklch(0.66 0.02 255);
-  --accent: oklch(0.28 0.03 258);
-  --accent-foreground: oklch(0.93 0.01 250);
-  --destructive: oklch(0.63 0.21 25);
-  --destructive-foreground: oklch(0.97 0.01 250);
-  --border: oklch(0.29 0.02 258);
-  --input: oklch(0.29 0.02 258);
-  --ring: oklch(0.78 0.13 195);
-  --bull: oklch(0.74 0.16 155);
-  --bear: oklch(0.66 0.2 22);
+  --background: #0b1220;
+  --foreground: #e8f0fb;
+  --card: #111d30;
+  --card-foreground: #e8f0fb;
+  --panel: #0e192b;
+  --panel-foreground: #dce8f7;
+  --popover: #142238;
+  --popover-foreground: #e8f0fb;
+  --primary: #38bdf8;
+  --primary-foreground: #06111f;
+  --secondary: #17263c;
+  --secondary-foreground: #dce8f7;
+  --muted: #182840;
+  --muted-foreground: #8fa5be;
+  --accent: #1c3857;
+  --accent-foreground: #f1f7ff;
+  --destructive: #fb7185;
+  --destructive-foreground: #fff1f2;
+  --border: #263c58;
+  --input: #294563;
+  --ring: #22d3ee;
+  --bull: #2dd4bf;
+  --bear: #fb7185;
 }
 
 @layer base {
@@ -113,15 +113,236 @@
   }
 
   body {
-    background-color: var(--color-background);
+    background:
+      radial-gradient(900px 500px at 8% -12%, rgb(14 165 233 / 0.13), transparent 62%),
+      radial-gradient(800px 520px at 105% 10%, rgb(34 211 238 / 0.08), transparent 58%),
+      var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-display);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   ::selection {
     background: color-mix(in oklab, var(--primary) 35%, transparent);
   }
+}
+
+/* ── Premium terminal surface system ───────────────────────────────────── */
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  scrollbar-color: #2c5277 transparent;
+  scrollbar-width: thin;
+}
+
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+body::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2e6188, #1d3a5a);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+body::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #38bdf8, #2563eb);
+  background-clip: padding-box;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition:
+    color 220ms ease,
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+button:not(:disabled):hover,
+a:hover {
+  text-decoration-thickness: 1px;
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 80%, transparent);
+  outline-offset: 2px;
+}
+
+input,
+select,
+textarea {
+  background-color: rgb(13 29 49 / 0.76);
+  border-color: rgb(67 103 139 / 0.62);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: rgb(81 145 191 / 0.72);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--ring);
+  box-shadow:
+    0 0 0 3px rgb(34 211 238 / 0.11),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+/* Shared glass treatment for the existing panel/card utility classes. */
+.bg-card,
+.bg-panel,
+.bg-panel\/60,
+.bg-card\/80 {
+  background-image:
+    linear-gradient(145deg, rgb(24 45 71 / 0.42), rgb(9 20 36 / 0.2)),
+    linear-gradient(180deg, rgb(17 29 48 / 0.97), rgb(13 25 43 / 0.97));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.035),
+    0 18px 45px rgb(2 8 23 / 0.16);
+}
+
+.bg-card\/80,
+.bg-panel\/60 {
+  backdrop-filter: blur(14px);
+}
+
+.border-border,
+.border-input {
+  border-color: rgb(58 88 120 / 0.68);
+}
+
+.bg-secondary,
+.bg-secondary\/40,
+.bg-secondary\/50,
+.bg-secondary\/60 {
+  background-color: rgb(24 43 67 / 0.78);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025);
+}
+
+.bg-background {
+  background-color: #0b1220;
+}
+
+.bg-primary {
+  background-image: linear-gradient(135deg, #38bdf8, #2563eb);
+  box-shadow: 0 8px 24px rgb(14 165 233 / 0.2);
+}
+
+.bg-primary:hover,
+.hover\:bg-primary\/90:hover {
+  background-image: linear-gradient(135deg, #67e8f9, #3b82f6);
+  box-shadow: 0 10px 30px rgb(14 165 233 / 0.28);
+}
+
+.text-primary {
+  color: #67e8f9;
+}
+
+.text-muted-foreground {
+  color: #91a8c2;
+}
+
+.text-foreground {
+  color: #e8f0fb;
+}
+
+.text-bull {
+  color: #2dd4bf;
+}
+
+.text-bear {
+  color: #fb7185;
+}
+
+/* Keep terminal controls compact while giving them a more deliberate rhythm. */
+header,
+aside,
+main > div:not(:has(canvas)) {
+  border-color: rgb(55 86 119 / 0.58);
+}
+
+header img {
+  box-shadow:
+    0 0 0 1px rgb(56 189 248 / 0.28),
+    0 8px 22px rgb(14 165 233 / 0.16);
+}
+
+aside button:hover,
+main button:hover {
+  border-color: rgb(67 142 190 / 0.65);
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid rgb(55 86 119 / 0.58);
+  border-radius: 12px;
+  background: rgb(15 30 49 / 0.74);
+}
+
+th {
+  background: rgb(25 47 73 / 0.84);
+  color: #9db6d0;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+td,
+th {
+  border-color: rgb(52 83 114 / 0.52);
+}
+
+tr:hover td {
+  background: rgb(38 75 111 / 0.18);
+}
+
+/* Existing modal/dropdown surfaces get the same elevated glass finish. */
+.shadow-2xl,
+.shadow-xl,
+.shadow-lg {
+  box-shadow:
+    0 24px 60px rgb(1 8 20 / 0.48),
+    0 0 0 1px rgb(88 146 190 / 0.11),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.backdrop-blur,
+.backdrop-blur-sm,
+.backdrop-blur-xl {
+  backdrop-filter: blur(16px);
 }
 
 @utility tabular {
