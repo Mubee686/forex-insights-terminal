@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [
     tanstackStart({
       serverFns: { disableCsrfMiddlewareWarning: true },
+      target: "cloudflare_pages",
     }),
     react(),
     tailwindcss(),
