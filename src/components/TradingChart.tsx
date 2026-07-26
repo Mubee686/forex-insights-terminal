@@ -47,8 +47,8 @@ const C = {
   text: "#a9b3c4",
   grid: "rgba(43,52,68,0.55)",
   border: "rgba(60,72,92,0.7)",
-  bull: "#00D4FF",
-  bear: "#FFA500",
+  bull: "#26a69a",
+  bear: "#ef5350",
   crosshair: "rgba(148,163,184,0.5)",
 };
 

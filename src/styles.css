@@ -73,8 +73,8 @@
   --input:  #102040;
   --ring:   #2563EB;
 
-  --bull: #00D4FF;
-  --bear: #FFA500;
+  --bull: #10B981;
+  --bear: #EF4444;
   --gold: #F59E0B;
 
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
@@ -192,8 +192,8 @@ input:focus, select:focus, textarea:focus {
 .text-primary          { color: #60A5FA; }
 .text-muted-foreground { color: #7BA8CC; }
 .text-foreground       { color: #FFFFFF; }
-.text-bull { color: #00D4FF; }
-.text-bear { color: #FFA500; }
+.text-bull { color: #10B981; }
+.text-bear { color: #EF4444; }
 
 .shadow-2xl, .shadow-xl, .shadow-lg { box-shadow: none; }
 .backdrop-blur, .backdrop-blur-sm, .backdrop-blur-xl {
@@ -511,11 +511,11 @@ div[class*="mt-6 flex rounded-lg bg-secondary p-1"] {
   animation: flashDown 0.5s ease;
 }
 @keyframes flashUp {
-  0%   { color: #00D4FF; }
+  0%   { color: #10B981; }
   100% { color: inherit; }
 }
 @keyframes flashDown {
-  0%   { color: #FFA500; }
+  0%   { color: #EF4444; }
   100% { color: inherit; }
 }
 
@@ -615,8 +615,8 @@ aside:not(.fixed) .scroll-thin > button:nth-child(n+6) { animation-delay: 0.18s;
   border-radius: 14px !important;
   color: #FFFFFF !important;
 }
-[data-sonner-toaster] [data-sonner-toast][data-type="success"] { border-color: #00D4FF !important; }
-[data-sonner-toaster] [data-sonner-toast][data-type="error"]   { border-color: #FFA500 !important; }
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] { border-color: #10B981 !important; }
+[data-sonner-toaster] [data-sonner-toast][data-type="error"]   { border-color: #EF4444 !important; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    RESPONSIVE
