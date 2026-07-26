@@ -56,6 +56,8 @@ export const Route = createFileRoute("/terminal")({
 });
 
 const ALL_TOOLS = new Set<ToolId>(TOOLS.map((t) => t.id));
+const FREE_TOOLS = new Set<ToolId>(TOOLS.filter((t) => t.tier === "free").map((t) => t.id));
+const PREMIUM_TOOLS = new Set<ToolId>(TOOLS.filter((t) => t.tier === "premium").map((t) => t.id));
 
 interface MenuState {
   id: string;
@@ -66,7 +68,8 @@ interface MenuState {
 function Terminal() {
   const [symbol, setSymbol] = useState("EUR/USD");
   const [timeframeId, setTimeframeId] = useState("15m");
-  const [enabled, setEnabled] = useState<Set<ToolId>>(() => new Set(ALL_TOOLS));
+  // Start with free tools only; premium tools are added once membership is confirmed active
+  const [enabled, setEnabled] = useState<Set<ToolId>>(() => new Set(FREE_TOOLS));
   const [query, setQuery] = useState("");
   const [toolsOpen, setToolsOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("candlestick");
@@ -76,10 +79,40 @@ function Terminal() {
   const _fetchMembership = useServerFn(getMyMembership);
   const fetchMembership = useCallback(_fetchMembership, []);
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      // Logged out — strip premium tools immediately
+      setEnabled((prev) => {
+        const next = new Set(prev);
+        PREMIUM_TOOLS.forEach((id) => next.delete(id));
+        return next;
+      });
+      setMembershipActive(false);
+      return;
+    }
     fetchMembership()
-      .then((r) => setMembershipActive(r.membership?.status === "active"))
-      .catch(() => {});
+      .then((r) => {
+        const active = r.membership?.status === "active";
+        setMembershipActive(active);
+        setEnabled((prev) => {
+          const next = new Set(prev);
+          if (active) {
+            // Grant all tools
+            ALL_TOOLS.forEach((id) => next.add(id));
+          } else {
+            // Remove any premium tools that may have snuck in
+            PREMIUM_TOOLS.forEach((id) => next.delete(id));
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        // On error default to free only
+        setEnabled((prev) => {
+          const next = new Set(prev);
+          PREMIUM_TOOLS.forEach((id) => next.delete(id));
+          return next;
+        });
+      });
   }, [session, fetchMembership]);
 
   const bar = useTimeframeBar();
