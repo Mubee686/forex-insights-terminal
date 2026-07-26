@@ -147,8 +147,8 @@ function Dashboard() {
               </div>
             </div>
             <Link
-              to="/"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+              to="/terminal"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90"
             >
               <LineChart className="h-4 w-4" /> Open Terminal
             </Link>
