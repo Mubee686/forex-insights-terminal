@@ -31,6 +31,10 @@ export const getMyMembership = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const sb = context.supabase as AnyClient;
+
+    // Auto-expire any membership whose end date has passed (incl. the 1-day trial)
+    await sb.rpc("expire_stale_memberships");
+
     const [profileRes, memRes] = await Promise.all([
       sb
         .from("profiles")
@@ -39,12 +43,31 @@ export const getMyMembership = createServerFn({ method: "GET" })
         .maybeSingle(),
       sb
         .from("memberships")
-        .select("status, plan_type, duration_months, start_date, end_date")
+        .select("status, plan_type, duration_months, start_date, end_date, trial_used, activated_at")
         .eq("user_id", context.userId)
         .maybeSingle(),
     ]);
-    return { profile: profileRes.data, membership: memRes.data };
+
+    const m = memRes.data;
+    const isActive =
+      m?.status === "active" && (!m?.end_date || new Date(m.end_date).getTime() > Date.now());
+
+    // Free trial: only for brand-new accounts that never had a membership activated
+    const trialEligible = !m || (!m.trial_used && !m.activated_at && !isActive);
+
+    return { profile: profileRes.data, membership: m, isActive, trialEligible };
   });
+
+/** Activate the one-time 1-day free trial for the current user. */
+export const activateFreeTrial = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = context.supabase as AnyClient;
+    const { data, error } = await sb.rpc("activate_free_trial");
+    if (error) throw new Error(error.message);
+    return { ok: true, membership: data };
+  });
+
 
 /** Is the current user an admin? */
 export const amIAdmin = createServerFn({ method: "GET" })
