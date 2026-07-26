@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { Activity } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function AuthShell({
@@ -27,9 +26,7 @@ export function AuthShell({
 
       <div className="auth-fade-up relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-[0_25px_60px_-20px_oklch(0.78_0.13_195/0.18)] backdrop-blur-xl">
         <Link to="/" className="mb-6 flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Activity className="h-4 w-4" />
-          </span>
+          <img src="/logo.png" alt="MF SMC Logo" className="h-9 w-9 rounded-lg object-cover" />
           <span className="text-sm font-semibold tracking-tight text-foreground">MF SMC Trader</span>
         </Link>
 
