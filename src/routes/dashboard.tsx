@@ -32,10 +32,14 @@ function Dashboard() {
   const isAdmin = session?.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   const _fetchMembership = useServerFn(getMyMembership);
   const fetchMembership = useCallback(_fetchMembership, []);
+  const _startTrial = useServerFn(activateFreeTrial);
+  const startTrial = useCallback(_startTrial, []);
 
   const [code, setCode] = useState<string | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
   const [name, setName] = useState<string | null>(null);
+  const [trialEligible, setTrialEligible] = useState(false);
+  const [trialLoading, setTrialLoading] = useState(false);
   const contactRef = useRef<HTMLDivElement>(null);
 
   function scrollToContact() {
@@ -46,16 +50,35 @@ function Dashboard() {
     if (!loading && !session) navigate({ to: "/login" });
   }, [loading, session, navigate]);
 
-  useEffect(() => {
-    if (!session) return;
-    fetchMembership()
-      .then((r: { profile: { full_name: string | null; member_code: string } | null; membership: Membership | null }) => {
+  const load = useCallback(() => {
+    return fetchMembership()
+      .then((r) => {
         setCode(r.profile?.member_code ?? null);
         setName(r.profile?.full_name ?? null);
-        setMembership(r.membership);
+        setMembership(r.membership as Membership | null);
+        setTrialEligible(!!r.trialEligible);
       })
       .catch((err: Error) => toast.error(err.message));
-  }, [session, fetchMembership]);
+  }, [fetchMembership]);
+
+  useEffect(() => {
+    if (!session) return;
+    load();
+  }, [session, load]);
+
+  async function claimTrial() {
+    setTrialLoading(true);
+    try {
+      await startTrial();
+      toast.success("Free trial activated — all features unlocked for 24 hours.");
+      await load();
+    } catch (err) {
+      toast.error((err as Error).message || "Could not activate free trial");
+    } finally {
+      setTrialLoading(false);
+    }
+  }
+
 
   async function signOut() {
     await supabase.auth.signOut();
