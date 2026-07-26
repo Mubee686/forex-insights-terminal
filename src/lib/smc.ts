@@ -28,7 +28,7 @@ export interface ToolMeta {
   short: string;
   color: string; // representative colour for legend / chip
   description: string;
-  tier: "premium" | "premium";
+  tier: "free" | "premium";
 }
 
 export const TOOLS: ToolMeta[] = [
