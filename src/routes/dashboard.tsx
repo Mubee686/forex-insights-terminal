@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth";
 import { ADMIN_EMAIL } from "@/lib/admin-config";
-import { getMyMembership } from "@/lib/membership.functions";
+import { activateFreeTrial, getMyMembership } from "@/lib/membership.functions";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
