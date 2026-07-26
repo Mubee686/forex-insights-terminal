@@ -215,6 +215,38 @@ function Dashboard() {
           <h2 className="mb-4 text-xl font-semibold text-foreground">Membership Plans</h2>
           <div className="grid gap-4 sm:grid-cols-2">
 
+            {/* Free Trial — new users only */}
+            {trialEligible && (
+              <div className="relative flex flex-col rounded-2xl border border-emerald-500/40 bg-card p-6 shadow-sm sm:col-span-2">
+                <div className="absolute -top-3 left-6 rounded-full bg-emerald-500 px-3 py-0.5 text-[11px] font-bold uppercase tracking-widest text-white">
+                  New users only
+                </div>
+                <div className="mb-1 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-emerald-400" />
+                  <span className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
+                    Free Trial
+                  </span>
+                </div>
+                <div className="mt-2 flex items-end gap-1">
+                  <span className="text-4xl font-bold text-foreground">Free</span>
+                  <span className="mb-1 text-sm text-muted-foreground">/ 24 hours</span>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Unlocks every premium SMC tool for exactly 24 hours. One activation per account —
+                  it expires automatically and your account reverts to no active membership.
+                </p>
+                <button
+                  onClick={claimTrial}
+                  disabled={trialLoading}
+                  className="mt-6 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500/90 disabled:opacity-60"
+                >
+                  {trialLoading ? "Activating…" : "Start 1-day free trial"}
+                </button>
+              </div>
+            )}
+
+
+
             {/* Standard — $25 */}
             <div className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
