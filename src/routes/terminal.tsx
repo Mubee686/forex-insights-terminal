@@ -79,41 +79,47 @@ function Terminal() {
   const _fetchMembership = useServerFn(getMyMembership);
   const fetchMembership = useCallback(_fetchMembership, []);
   useEffect(() => {
-    if (!session) {
-      // Logged out — strip premium tools immediately
+    const lock = () => {
+      setMembershipActive(false);
       setEnabled((prev) => {
         const next = new Set(prev);
         PREMIUM_TOOLS.forEach((id) => next.delete(id));
         return next;
       });
-      setMembershipActive(false);
+    };
+
+    if (!session) {
+      lock();
       return;
     }
-    fetchMembership()
-      .then((r) => {
-        const active = r.membership?.status === "active";
-        setMembershipActive(active);
-        setEnabled((prev) => {
-          const next = new Set(prev);
-          if (active) {
-            // Grant all tools
-            ALL_TOOLS.forEach((id) => next.add(id));
-          } else {
-            // Remove any premium tools that may have snuck in
-            PREMIUM_TOOLS.forEach((id) => next.delete(id));
-          }
-          return next;
+
+    let cancelled = false;
+    const check = () =>
+      fetchMembership()
+        .then((r) => {
+          if (cancelled) return;
+          const active = !!r.isActive;
+          setMembershipActive(active);
+          setEnabled((prev) => {
+            const next = new Set(prev);
+            if (active) ALL_TOOLS.forEach((id) => next.add(id));
+            else PREMIUM_TOOLS.forEach((id) => next.delete(id));
+            return next;
+          });
+        })
+        .catch(() => {
+          if (!cancelled) lock();
         });
-      })
-      .catch(() => {
-        // On error default to free only
-        setEnabled((prev) => {
-          const next = new Set(prev);
-          PREMIUM_TOOLS.forEach((id) => next.delete(id));
-          return next;
-        });
-      });
+
+    check();
+    // Re-check periodically so an expiring membership locks tools immediately
+    const t = setInterval(check, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, [session, fetchMembership]);
+
 
   const bar = useTimeframeBar();
   const { formattedTime, epoch } = useCandleTimer(timeframeId);
@@ -542,8 +548,10 @@ function Terminal() {
               <div className="scroll-thin flex-1 overflow-y-auto p-3">
                 {(["free", "premium"] as const).map((tier) => {
                   const tierTools = TOOLS.filter((t) => t.tier === tier);
+                  if (tierTools.length === 0) return null;
                   return (
                     <div key={tier} className="mb-4">
+
                       <div className="mb-2 flex items-center gap-2">
                         <span
                           className={cn(

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth";
 import { ADMIN_EMAIL } from "@/lib/admin-config";
-import { getMyMembership } from "@/lib/membership.functions";
+import { activateFreeTrial, getMyMembership } from "@/lib/membership.functions";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -32,10 +32,14 @@ function Dashboard() {
   const isAdmin = session?.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   const _fetchMembership = useServerFn(getMyMembership);
   const fetchMembership = useCallback(_fetchMembership, []);
+  const _startTrial = useServerFn(activateFreeTrial);
+  const startTrial = useCallback(_startTrial, []);
 
   const [code, setCode] = useState<string | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
   const [name, setName] = useState<string | null>(null);
+  const [trialEligible, setTrialEligible] = useState(false);
+  const [trialLoading, setTrialLoading] = useState(false);
   const contactRef = useRef<HTMLDivElement>(null);
 
   function scrollToContact() {
@@ -46,16 +50,35 @@ function Dashboard() {
     if (!loading && !session) navigate({ to: "/login" });
   }, [loading, session, navigate]);
 
-  useEffect(() => {
-    if (!session) return;
-    fetchMembership()
-      .then((r: { profile: { full_name: string | null; member_code: string } | null; membership: Membership | null }) => {
+  const load = useCallback(() => {
+    return fetchMembership()
+      .then((r) => {
         setCode(r.profile?.member_code ?? null);
         setName(r.profile?.full_name ?? null);
-        setMembership(r.membership);
+        setMembership(r.membership as Membership | null);
+        setTrialEligible(!!r.trialEligible);
       })
       .catch((err: Error) => toast.error(err.message));
-  }, [session, fetchMembership]);
+  }, [fetchMembership]);
+
+  useEffect(() => {
+    if (!session) return;
+    load();
+  }, [session, load]);
+
+  async function claimTrial() {
+    setTrialLoading(true);
+    try {
+      await startTrial();
+      toast.success("Free trial activated — all features unlocked for 24 hours.");
+      await load();
+    } catch (err) {
+      toast.error((err as Error).message || "Could not activate free trial");
+    } finally {
+      setTrialLoading(false);
+    }
+  }
+
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -191,6 +214,38 @@ function Dashboard() {
         <div>
           <h2 className="mb-4 text-xl font-semibold text-foreground">Membership Plans</h2>
           <div className="grid gap-4 sm:grid-cols-2">
+
+            {/* Free Trial — new users only */}
+            {trialEligible && (
+              <div className="relative flex flex-col rounded-2xl border border-emerald-500/40 bg-card p-6 shadow-sm sm:col-span-2">
+                <div className="absolute -top-3 left-6 rounded-full bg-emerald-500 px-3 py-0.5 text-[11px] font-bold uppercase tracking-widest text-white">
+                  New users only
+                </div>
+                <div className="mb-1 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-emerald-400" />
+                  <span className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
+                    Free Trial
+                  </span>
+                </div>
+                <div className="mt-2 flex items-end gap-1">
+                  <span className="text-4xl font-bold text-foreground">Free</span>
+                  <span className="mb-1 text-sm text-muted-foreground">/ 24 hours</span>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Unlocks every premium SMC tool for exactly 24 hours. One activation per account —
+                  it expires automatically and your account reverts to no active membership.
+                </p>
+                <button
+                  onClick={claimTrial}
+                  disabled={trialLoading}
+                  className="mt-6 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500/90 disabled:opacity-60"
+                >
+                  {trialLoading ? "Activating…" : "Start 1-day free trial"}
+                </button>
+              </div>
+            )}
+
+
 
             {/* Standard — $25 */}
             <div className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm">

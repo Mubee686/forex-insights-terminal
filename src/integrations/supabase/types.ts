@@ -22,8 +22,16 @@ export type Database = {
           duration_months: number | null
           end_date: string | null
           expiry_notified_at: string | null
+          plan_type: string | null
+          prev_duration_months: number | null
+          prev_end_date: string | null
+          prev_plan_type: string | null
+          prev_start_date: string | null
+          prev_status: string | null
+          revert_available: boolean
           start_date: string | null
           status: string
+          trial_used: boolean
           updated_at: string
           user_id: string
         }
@@ -34,8 +42,16 @@ export type Database = {
           duration_months?: number | null
           end_date?: string | null
           expiry_notified_at?: string | null
+          plan_type?: string | null
+          prev_duration_months?: number | null
+          prev_end_date?: string | null
+          prev_plan_type?: string | null
+          prev_start_date?: string | null
+          prev_status?: string | null
+          revert_available?: boolean
           start_date?: string | null
           status?: string
+          trial_used?: boolean
           updated_at?: string
           user_id: string
         }
@@ -46,8 +62,16 @@ export type Database = {
           duration_months?: number | null
           end_date?: string | null
           expiry_notified_at?: string | null
+          plan_type?: string | null
+          prev_duration_months?: number | null
+          prev_end_date?: string | null
+          prev_plan_type?: string | null
+          prev_start_date?: string | null
+          prev_status?: string | null
+          revert_available?: boolean
           start_date?: string | null
           status?: string
+          trial_used?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -103,6 +127,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_free_trial: {
+        Args: never
+        Returns: {
+          activated_at: string | null
+          activated_by: string | null
+          created_at: string
+          duration_months: number | null
+          end_date: string | null
+          expiry_notified_at: string | null
+          plan_type: string | null
+          prev_duration_months: number | null
+          prev_end_date: string | null
+          prev_plan_type: string | null
+          prev_start_date: string | null
+          prev_status: string | null
+          revert_available: boolean
+          start_date: string | null
+          status: string
+          trial_used: boolean
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "memberships"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      expire_stale_memberships: { Args: never; Returns: undefined }
       generate_member_code: { Args: never; Returns: string }
       has_role: {
         Args: {

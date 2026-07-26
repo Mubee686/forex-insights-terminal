@@ -21,10 +21,12 @@ const BASE_URL = "https://api.twelvedata.com";
 const MAX_CANDLES = 1500;
 
 export function twelveDataApiKey(): string {
-  const key = process.env.TWELVEDATA_API_KEY;
+  // Accept either naming so an existing deployment secret keeps working.
+  const key = process.env.TWELVEDATA_API_KEY ?? process.env.TWELVE_DATA_API_KEY;
   if (!key) throw new Error("TWELVEDATA_API_KEY is not set");
   return key;
 }
+
 
 /** Twelve Data uses the app's own display symbol format ("EUR/USD") natively — no remapping needed. */
 export function resolveSymbol(pairSymbol: string): string {
