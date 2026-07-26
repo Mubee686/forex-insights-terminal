@@ -46,8 +46,8 @@ function CandlestickIllustration() {
         { x: 270, body: [48, 65], wick: [42, 72] },
       ].map(({ x, body, wick }) => (
         <g key={x}>
-          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#10B981" strokeWidth="1.5" />
-          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#10B981" />
+          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#00D4FF" strokeWidth="1.5" />
+          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#00D4FF" />
         </g>
       ))}
 
@@ -58,8 +58,8 @@ function CandlestickIllustration() {
         { x: 230, body: [62, 76], wick: [56, 82] },
       ].map(({ x, body, wick }) => (
         <g key={x}>
-          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#EF4444" strokeWidth="1.5" />
-          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#EF4444" />
+          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#FFA500" strokeWidth="1.5" />
+          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#FFA500" />
         </g>
       ))}
 
@@ -160,12 +160,12 @@ function LandingPage() {
   const { ref: authRevealRef, visible: authRevealVisible } = useReveal();
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ fontFamily: "'Space Grotesk', sans-serif", background: "#08111F" }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ fontFamily: "'Space Grotesk', sans-serif", background: "#0A1428" }}>
 
       {/* ══════════════════════════════════════════════════════
           HERO SECTION
       ════════════════════════════════════════════════════════ */}
-      <section className="relative flex min-h-screen flex-col items-center justify-center px-6 text-center" style={{ background: "#08111F" }}>
+      <section className="relative flex min-h-screen flex-col items-center justify-center px-6 text-center" style={{ background: "#0A1428" }}>
 
         {/* Nav bar */}
         <nav className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between border-b border-[#1E3A6E] bg-[#091629] px-6 py-4">
@@ -233,7 +233,7 @@ function LandingPage() {
       {/* ══════════════════════════════════════════════════════
           FEATURES SECTION
       ════════════════════════════════════════════════════════ */}
-      <section className="relative px-6 py-20" style={{ background: "#0A1528" }}>
+      <section className="relative px-6 py-20" style={{ background: "#0A1428" }}>
         <div className="mx-auto max-w-5xl">
           <div
             ref={featuresRef}
@@ -284,7 +284,7 @@ function LandingPage() {
       {/* ══════════════════════════════════════════════════════
           AUTH SECTION
       ════════════════════════════════════════════════════════ */}
-      <section ref={authRef} className="relative px-6 py-24" style={{ background: "#08111F" }}>
+      <section ref={authRef} className="relative px-6 py-24" style={{ background: "#0A1428" }}>
         <div
           ref={authRevealRef}
           style={{
