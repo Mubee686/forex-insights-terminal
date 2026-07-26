@@ -542,8 +542,10 @@ function Terminal() {
               <div className="scroll-thin flex-1 overflow-y-auto p-3">
                 {(["free", "premium"] as const).map((tier) => {
                   const tierTools = TOOLS.filter((t) => t.tier === tier);
+                  if (tierTools.length === 0) return null;
                   return (
                     <div key={tier} className="mb-4">
+
                       <div className="mb-2 flex items-center gap-2">
                         <span
                           className={cn(
