@@ -75,6 +75,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     // Supabase realtime client doesn't throw on server-side renders.
     // This app doesn't use Supabase realtime (prices come via SSE),
     // but the client still initialises a realtime socket by default.
+    const { default: WS } = await import('ws');
 
     const supabase = createClient<Database>(
       SUPABASE_URL!,
@@ -92,7 +93,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
           autoRefreshToken: false,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        realtime: { transport: WebSocket as any },
+        realtime: { transport: WS as any },
       }
     );
 

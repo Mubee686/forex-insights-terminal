@@ -1,15 +1,14 @@
 # Cloudflare Pages — MF SMC Trader
 # Docs: https://developers.cloudflare.com/pages/
-name = "forex-insights-terminal"
-main = "dist/server/server.js"
+
+name = "mf-smc-trader"
+pages_build_output_dir = ".output/public"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-[assets]
-directory = "dist/client"
-binding = "ASSETS"
-
-# ── Build settings (used by Cloudflare Pages CI) ─────────────────────────────
+# ── Build settings (used by Cloudflare Pages CI) ──────────────────────────────
+[build]
+command = "npm install && npm run build:cloudflare"
 
 # ── Environment variables (non-secret) ────────────────────────────────────────
 # Secrets are set via the Cloudflare Dashboard → Settings → Environment Variables

@@ -13,8 +13,8 @@
     "build:cloudflare": "NITRO_PRESET=cloudflare-pages vite build",
     "deploy:cloudflare": "npm run build:cloudflare && wrangler pages deploy .output/public"
   },
-  "dependencies": { 
-    "@hookform/resolvers": "5.2.2",
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@lovable.dev/email-js": "^0.1.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

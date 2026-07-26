@@ -5,6 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 // Node.js < 22 has no native WebSocket; `ws` is the polyfill.
 // Top-level import is safe here because this file is server-only (.server.ts).
+import WS from 'ws';
 import type { Database } from './types';
 
 function isNewSupabaseApiKey(value: string): boolean {
@@ -55,7 +56,7 @@ function createSupabaseAdminClient() {
       autoRefreshToken: false,
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    realtime: { transport: WebSocket as any },
+    realtime: { transport: WS as any },
   });
 }
 
