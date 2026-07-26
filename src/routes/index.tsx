@@ -46,8 +46,8 @@ function CandlestickIllustration() {
         { x: 270, body: [48, 65], wick: [42, 72] },
       ].map(({ x, body, wick }) => (
         <g key={x}>
-          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#00D4FF" strokeWidth="1.5" />
-          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#00D4FF" />
+          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#10B981" strokeWidth="1.5" />
+          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#10B981" />
         </g>
       ))}
 
@@ -58,8 +58,8 @@ function CandlestickIllustration() {
         { x: 230, body: [62, 76], wick: [56, 82] },
       ].map(({ x, body, wick }) => (
         <g key={x}>
-          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#FFA500" strokeWidth="1.5" />
-          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#FFA500" />
+          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#EF4444" strokeWidth="1.5" />
+          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#EF4444" />
         </g>
       ))}
 
