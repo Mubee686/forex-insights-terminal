@@ -1,843 +1,534 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Activity,
-  CandlestickChart,
-  Layers,
-  LineChart,
-  Loader2,
-  Lock,
-  Pencil,
-  Pin,
-  PinOff,
-  Plus,
-  RefreshCw,
-  Search,
-  Timer,
-  Trash2,
-  ArrowLeft,
-  ArrowRight,
-  TrendingDown,
-  TrendingUp,
-  X,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { getMyMembership } from "@/lib/membership.functions";
-
-import { TradingChart, type ChartType } from "@/components/TradingChart";
-import { useMarketData, type FeedStatus } from "@/hooks/use-market-data";
-import { useCandleTimer } from "@/hooks/use-candle-timer";
-import { useTimeframeBar } from "@/hooks/use-timeframes";
-import { FOREX_PAIRS, formatPrice, getPair } from "@/lib/forex";
-import {
-  DEFAULT_TIMEFRAME_IDS,
-  QUICK_TIMEFRAME_IDS,
-  getTimeframe,
-  parseTimeframe,
-} from "@/lib/timeframes";
-import { TOOLS, analyze, zonesForTools, type ToolId } from "@/lib/smc";
-import { cn } from "@/lib/utils";
-import { useAuthSession } from "@/hooks/use-auth";
-import { User as UserIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { TrendingUp, BarChart2, Shield, Zap, ChevronDown, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "MF SMC Trader — Live Forex SMC Analysis Terminal" },
+      { title: "MF SMC Trader — Professional Forex SMC Analysis" },
       {
         name: "description",
         content:
-          "Professional forex trading terminal with live market data, TradingView-style candlestick charts, custom timeframes and Smart Money Concept analysis tools.",
+          "Professional forex trading terminal with live market data, Smart Money Concept analysis, and real-time candlestick charts.",
       },
     ],
   }),
-  component: Terminal,
+  component: LandingPage,
 });
 
-const ALL_TOOLS = new Set<ToolId>(TOOLS.map((t) => t.id));
+/* ─── Animated candlestick SVG illustration ────────────────────────────── */
+function CandlestickIllustration() {
+  return (
+    <svg
+      viewBox="0 0 320 200"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-full max-w-sm drop-shadow-2xl"
+      style={{ filter: "drop-shadow(0 0 32px rgba(37,99,235,0.35))" }}
+    >
+      {/* Grid lines */}
+      {[40, 80, 120, 160].map((y) => (
+        <line key={y} x1="0" y1={y} x2="320" y2={y} stroke="rgba(37,99,235,0.15)" strokeWidth="1" />
+      ))}
+      {[40, 80, 120, 160, 200, 240, 280].map((x) => (
+        <line key={x} x1={x} y1="0" x2={x} y2="200" stroke="rgba(37,99,235,0.10)" strokeWidth="1" />
+      ))}
 
-interface MenuState {
-  id: string;
-  x: number;
-  y: number;
+      {/* Area fill under line */}
+      <defs>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2563EB" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#2563EB" stopOpacity="0.0" />
+        </linearGradient>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#60A5FA" />
+          <stop offset="100%" stopColor="#2563EB" />
+        </linearGradient>
+      </defs>
+
+      {/* Trend line area */}
+      <path
+        d="M10,155 L50,140 L90,125 L130,105 L170,95 L210,80 L250,65 L290,50 L310,40 L310,200 L10,200 Z"
+        fill="url(#areaGrad)"
+      />
+      <path
+        d="M10,155 L50,140 L90,125 L130,105 L170,95 L210,80 L250,65 L290,50 L310,40"
+        stroke="url(#lineGrad)"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Bullish candles (teal) */}
+      {[
+        { x: 30, body: [130, 148], wick: [125, 155] },
+        { x: 110, body: [98, 115], wick: [92, 122] },
+        { x: 190, body: [74, 92], wick: [68, 98] },
+        { x: 270, body: [48, 65], wick: [42, 72] },
+      ].map(({ x, body, wick }) => (
+        <g key={x}>
+          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#10B981" strokeWidth="1.5" />
+          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#10B981" fillOpacity="0.9" />
+        </g>
+      ))}
+
+      {/* Bearish candles (red) */}
+      {[
+        { x: 70, body: [128, 143], wick: [122, 150] },
+        { x: 150, body: [90, 104], wick: [85, 112] },
+        { x: 230, body: [62, 76], wick: [56, 82] },
+      ].map(({ x, body, wick }) => (
+        <g key={x}>
+          <line x1={x} y1={wick[0]} x2={x} y2={wick[1]} stroke="#EF4444" strokeWidth="1.5" />
+          <rect x={x - 7} y={body[0]} width="14" height={body[1] - body[0]} rx="2" fill="#EF4444" fillOpacity="0.85" />
+        </g>
+      ))}
+
+      {/* SMC zone highlight */}
+      <rect x="155" y="86" width="85" height="20" rx="2" fill="#2563EB" fillOpacity="0.15" stroke="#2563EB" strokeWidth="0.75" strokeOpacity="0.5" />
+      <text x="160" y="100" fill="#60A5FA" fontSize="8" fontFamily="monospace" fontWeight="600">OB</text>
+
+      {/* Live price line */}
+      <line x1="0" y1="48" x2="300" y2="48" stroke="#2563EB" strokeWidth="1" strokeDasharray="4 3" strokeOpacity="0.7" />
+      <rect x="285" y="41" width="35" height="14" rx="3" fill="#2563EB" />
+      <text x="302" y="51" fill="white" fontSize="7.5" fontFamily="monospace" textAnchor="middle" fontWeight="700">LIVE</text>
+    </svg>
+  );
 }
 
-function Terminal() {
-  const [symbol, setSymbol] = useState("EUR/USD");
-  const [timeframeId, setTimeframeId] = useState("15m");
-  const [enabled, setEnabled] = useState<Set<ToolId>>(() => new Set(ALL_TOOLS));
-  const [query, setQuery] = useState("");
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const [chartType, setChartType] = useState<ChartType>("candlestick");
-  const [membershipActive, setMembershipActive] = useState(false);
-
-  const { session } = useAuthSession();
-  const _fetchMembership = useServerFn(getMyMembership);
-  const fetchMembership = useCallback(_fetchMembership, []);
-  useEffect(() => {
-    if (!session) return;
-    fetchMembership()
-      .then((r) => setMembershipActive(r.membership?.status === "active"))
-      .catch(() => {});
-  }, [session, fetchMembership]);
-
-  const bar = useTimeframeBar();
-  const { formattedTime, epoch } = useCandleTimer(timeframeId);
-
-  // Timeframe-bar management UI state
-  const [menu, setMenu] = useState<MenuState | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [customInput, setCustomInput] = useState("");
-  const [customError, setCustomError] = useState("");
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editInput, setEditInput] = useState("");
-  const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const { candles, price, prevClose, status, error, isLoading, refresh } = useMarketData(
-    symbol,
-    timeframeId,
-    epoch,
-  );
-
-  const pair = getPair(symbol);
-  const tf = getTimeframe(timeframeId);
-
-  const analysis = useMemo(() => analyze(candles), [candles]);
-  const zones = useMemo(() => zonesForTools(analysis, enabled), [analysis, enabled]);
-
-  const last = candles[candles.length - 1];
-  const livePrice = price ?? last?.close ?? null;
-  const change =
-    livePrice != null && prevClose != null && prevClose !== 0
-      ? ((livePrice - prevClose) / prevClose) * 100
-      : 0;
-
-  // ── Price flash: briefly color the price green/red on every tick ────────
-  const [flash, setFlash] = useState<"up" | "down" | null>(null);
-  const prevPriceRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (livePrice == null) return;
-    const prev = prevPriceRef.current;
-    if (prev != null && livePrice !== prev) {
-      setFlash(livePrice > prev ? "up" : "down");
-      const t = setTimeout(() => setFlash(null), 700);
-      prevPriceRef.current = livePrice;
-      return () => clearTimeout(t);
-    }
-    prevPriceRef.current = livePrice;
-  }, [livePrice]);
-  const sessionHigh = candles.length
-    ? candles.reduce((m, c) => Math.max(m, c.high), -Infinity)
-    : NaN;
-  const sessionLow = candles.length ? candles.reduce((m, c) => Math.min(m, c.low), Infinity) : NaN;
-
-  const toggle = (id: ToolId) => {
-    const tool = TOOLS.find((t) => t.id === id);
-    if (tool?.tier === "premium" && !membershipActive) {
-      toast.error("Premium membership required to use this tool.", {
-        description: "Upgrade your plan from the dashboard.",
-        action: { label: "Dashboard", onClick: () => window.location.href = "/dashboard" },
-      });
-      return;
-    }
-    setEnabled((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
-  const filteredPairs = FOREX_PAIRS.filter(
-    (p) =>
-      p.symbol.toLowerCase().includes(query.toLowerCase()) ||
-      p.name.toLowerCase().includes(query.toLowerCase()),
-  );
-
-  const zoneCount = (tool: ToolId) => analysis[tool].length;
-
-  // If the selected timeframe gets removed from the bar, pick another.
-  useEffect(() => {
-    if (bar.hydrated && bar.ids.length && !bar.ids.includes(timeframeId)) {
-      setTimeframeId(bar.ids[0]);
-    }
-  }, [bar.hydrated, bar.ids, timeframeId]);
-
-  // ── Timeframe bar interactions ────────────────────────────────────────────
-  function openMenu(id: string, x: number, y: number) {
-    const menuW = 176;
-    const clampedX = Math.min(x, window.innerWidth - menuW - 8);
-    setMenu({ id, x: Math.max(8, clampedX), y });
-    setPickerOpen(false);
-  }
-
-  function startLongPress(id: string, e: React.TouchEvent) {
-    const t = e.touches[0];
-    const x = t.clientX;
-    const y = t.clientY;
-    longPress.current = setTimeout(() => openMenu(id, x, y), 480);
-  }
-  function cancelLongPress() {
-    if (longPress.current) {
-      clearTimeout(longPress.current);
-      longPress.current = null;
-    }
-  }
-
-  function addCustom() {
-    const id = bar.add(customInput);
-    if (!id) {
-      setCustomError("Invalid format. Try 2m, 45m, 3h, 2d");
-      return;
-    }
-    setTimeframeId(id);
-    setCustomInput("");
-    setCustomError("");
-    setPickerOpen(false);
-  }
-
-  function commitEdit() {
-    if (!editId) return;
-    const id = bar.edit(editId, editInput);
-    if (!id) {
-      setCustomError("Invalid format. Try 2m, 45m, 3h, 2d");
-      return;
-    }
-    if (timeframeId === editId) setTimeframeId(id);
-    setEditId(null);
-    setEditInput("");
-    setCustomError("");
-  }
-
-  // timeframes available to pin (not already on the bar)
-  const pinnable = [...DEFAULT_TIMEFRAME_IDS, ...QUICK_TIMEFRAME_IDS].filter(
-    (id) => !bar.ids.includes(id),
-  );
-
+/* ─── Floating background particles ────────────────────────────────────── */
+function FloatingParticles() {
+  const particles = [
+    { size: 3, top: "15%", left: "8%",  delay: "0s",   duration: "7s"  },
+    { size: 2, top: "72%", left: "5%",  delay: "1.2s", duration: "9s"  },
+    { size: 4, top: "38%", left: "92%", delay: "0.5s", duration: "8s"  },
+    { size: 2, top: "85%", left: "88%", delay: "2s",   duration: "10s" },
+    { size: 3, top: "55%", left: "50%", delay: "1.5s", duration: "6s"  },
+    { size: 2, top: "22%", left: "70%", delay: "3s",   duration: "11s" },
+    { size: 3, top: "65%", left: "30%", delay: "0.8s", duration: "8s"  },
+    { size: 2, top: "10%", left: "45%", delay: "2.5s", duration: "9s"  },
+    { size: 4, top: "45%", left: "18%", delay: "1s",   duration: "7s"  },
+    { size: 2, top: "90%", left: "55%", delay: "3.5s", duration: "12s" },
+  ];
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      {/* ── Top bar ──────────────────────────────────────────────────── */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-panel px-4">
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="MF SMC Logo" className="h-9 w-9 rounded-lg object-cover" />
-          <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight">MF SMC Trader</div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Live Forex · SMC Analysis
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <FeedBadge status={status} onRetry={refresh} />
-          <HeaderAuth />
-        </div>
-      </header>
-
-      {error && (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-bear/40 bg-bear/10 px-4 py-1.5 text-xs text-bear">
-          <span>Market feed error: {error}</span>
-          <button
-            onClick={refresh}
-            className="flex items-center gap-1 rounded border border-bear/40 px-2 py-0.5 font-medium hover:bg-bear/20"
-          >
-            <RefreshCw className="h-3 w-3" /> Retry
-          </button>
-        </div>
-      )}
-
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* ── Pairs sidebar ────────────────────────────────────────────── */}
-        <aside className="flex shrink-0 flex-col border-b border-border bg-panel lg:w-72 lg:border-b-0 lg:border-r">
-          <div className="p-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search pairs…"
-                className="w-full rounded-md border border-border bg-secondary/40 py-2 pl-8 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring"
-              />
-            </div>
-          </div>
-
-          <div className="scroll-thin flex gap-2 overflow-x-auto px-3 pb-3 lg:flex-1 lg:flex-col lg:gap-0.5 lg:overflow-y-auto lg:overflow-x-hidden lg:px-2">
-            {filteredPairs.map((p) => {
-              const active = p.symbol === symbol;
-              return (
-                <button
-                  key={p.symbol}
-                  onClick={() => setSymbol(p.symbol)}
-                  className={cn(
-                    "group flex min-w-[150px] shrink-0 items-center justify-between rounded-md border px-3 py-2 text-left transition-colors lg:min-w-0",
-                    active
-                      ? "border-primary/40 bg-primary/10"
-                      : "border-transparent hover:bg-secondary/50",
-                  )}
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">{p.symbol}</div>
-                    <div className="truncate text-[11px] text-muted-foreground">
-                      {active && livePrice != null ? formatPrice(livePrice, p.digits) : p.name}
-                    </div>
-                  </div>
-                  {active && (
-                    <div
-                      className={cn(
-                        "tabular flex items-center gap-1 text-xs font-medium",
-                        change >= 0 ? "text-bull" : "text-bear",
-                      )}
-                    >
-                      {change >= 0 ? (
-                        <TrendingUp className="h-3 w-3" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3" />
-                      )}
-                      {change >= 0 ? "+" : ""}
-                      {change.toFixed(2)}%
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </aside>
-
-        {/* ── Chart column ─────────────────────────────────────────────── */}
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* Instrument header */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border bg-panel/60 px-4 py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold tracking-tight">{pair.symbol}</span>
-              <span className="rounded bg-secondary/60 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                {tf.label}
-              </span>
-              <span className="flex items-center gap-1 rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                <Timer className="h-2.5 w-2.5 shrink-0" />
-                {formattedTime}
-              </span>
-            </div>
-
-            {livePrice != null && (
-              <div className="flex items-baseline gap-2">
-                <span
-                  key={flash}
-                  className={cn(
-                    "tabular text-lg font-semibold transition-smooth",
-                    flash === "up" && "price-flash-up",
-                    flash === "down" && "price-flash-down",
-                  )}
-                >
-                  {formatPrice(livePrice, pair.digits)}
-                </span>
-                <span
-                  className={cn(
-                    "tabular text-sm font-medium",
-                    change >= 0 ? "text-bull" : "text-bear",
-                  )}
-                >
-                  {change >= 0 ? "+" : ""}
-                  {change.toFixed(2)}%
-                </span>
-              </div>
-            )}
-
-            <Stat label="High" value={formatPrice(sessionHigh, pair.digits)} />
-            <Stat label="Low" value={formatPrice(sessionLow, pair.digits)} />
-
-            {/* ── SMC Tools + timeframe bar ──────────────────────────── */}
-            <div className="ml-auto flex items-center gap-1.5">
-              <button
-                onClick={() => setToolsOpen((v) => !v)}
-                aria-label="SMC analysis tools"
-                aria-pressed={toolsOpen}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
-                  toolsOpen
-                    ? "border-primary/40 bg-primary/15 text-primary"
-                    : "border-border bg-secondary/50 text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                <Layers className="h-3 w-3" />
-                <span>SMC</span>
-                <span className="tabular rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                  {enabled.size}
-                </span>
-              </button>
-
-              <div className="scroll-thin flex max-w-[60vw] items-center gap-0.5 overflow-x-auto rounded-md border border-border bg-secondary/40 p-0.5 lg:max-w-none">
-                {bar.items.map((t) => {
-                  const isActive = t.id === timeframeId;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => setTimeframeId(t.id)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        openMenu(t.id, e.clientX, e.clientY);
-                      }}
-                      onTouchStart={(e) => startLongPress(t.id, e)}
-                      onTouchEnd={cancelLongPress}
-                      onTouchMove={cancelLongPress}
-                      className={cn(
-                        "shrink-0 select-none rounded px-2 py-1 text-xs font-semibold transition-colors",
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Add / pin timeframe */}
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setPickerOpen((v) => !v);
-                    setMenu(null);
-                    setCustomError("");
-                  }}
-                  aria-label="Add timeframe"
-                  className={cn(
-                    "flex items-center rounded border border-border p-1.5 text-xs transition-colors",
-                    pickerOpen
-                      ? "bg-primary/20 text-primary"
-                      : "bg-secondary/40 text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-
-                {pickerOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-panel shadow-2xl">
-                    <div className="border-b border-border px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Pin a timeframe
-                    </div>
-                    <div className="grid grid-cols-5 gap-1 p-3">
-                      {pinnable.length === 0 && (
-                        <span className="col-span-5 text-[11px] text-muted-foreground">
-                          All presets pinned.
-                        </span>
-                      )}
-                      {pinnable.map((id) => (
-                        <button
-                          key={id}
-                          onClick={() => {
-                            bar.pin(id);
-                            setTimeframeId(id);
-                            setPickerOpen(false);
-                          }}
-                          className="rounded bg-secondary/50 px-1.5 py-1 text-center text-xs font-medium text-muted-foreground hover:bg-primary/20 hover:text-primary"
-                        >
-                          {getTimeframe(id).label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="border-t border-border px-3 py-2.5">
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          addCustom();
-                        }}
-                        className="flex gap-2"
-                      >
-                        <input
-                          value={customInput}
-                          onChange={(e) => {
-                            setCustomInput(e.target.value);
-                            setCustomError("");
-                          }}
-                          placeholder="Custom e.g. 6h, 45m, 2d"
-                          className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-xs outline-none placeholder:text-muted-foreground/50 focus:border-primary"
-                        />
-                        <button
-                          type="submit"
-                          className="shrink-0 rounded bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-                        >
-                          Add
-                        </button>
-                      </form>
-                      {customError && <p className="mt-1 text-[10px] text-bear">{customError}</p>}
-                      <p className="mt-1 text-[10px] text-muted-foreground/60">
-                        Units: <code>m h d w mo</code> · long-press a chip to manage it
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Chart */}
-          <div className="min-h-0 flex-1 bg-card">
-            <TradingChart
-              candles={candles}
-              zones={zones}
-              digits={pair.digits}
-              resetKey={`${symbol}|${timeframeId}`}
-              isLoading={isLoading}
-              chartType={chartType}
-              formattedTime={formattedTime}
-              enabledTools={enabled}
-            />
-          </div>
-        </main>
-
-        {/* ── SMC Tools panel ─────────────────────────────────────────── */}
-        {toolsOpen && (
-          <>
-            <div
-              onClick={() => setToolsOpen(false)}
-              className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm"
-            />
-            <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-panel shadow-2xl">
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <div>
-                  <h2 className="text-sm font-semibold">SMC Analysis</h2>
-                  <p className="text-[11px] text-muted-foreground">
-                    Toggle tools to plot detected zones
-                  </p>
-                </div>
-                <button
-                  onClick={() => setToolsOpen(false)}
-                  aria-label="Close SMC tools"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="scroll-thin flex-1 overflow-y-auto p-3">
-                {(["free", "premium"] as const).map((tier) => {
-                  const tierTools = TOOLS.filter((t) => t.tier === tier);
-                  return (
-                    <div key={tier} className="mb-4">
-                      {/* Tier header */}
-                      <div className="mb-2 flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest",
-                            tier === "free"
-                              ? "bg-emerald-500/15 text-emerald-400"
-                              : "bg-amber-500/15 text-amber-400",
-                          )}
-                        >
-                          {tier === "free" ? "Free" : "Premium"}
-                        </span>
-                        <div className="h-px flex-1 bg-border" />
-                      </div>
-
-                      <div className="space-y-2">
-                        {tierTools.map((t) => {
-                          const on = enabled.has(t.id);
-                          const locked = t.tier === "premium" && !membershipActive;
-                          return (
-                            <button
-                              key={t.id}
-                              onClick={() => toggle(t.id)}
-                              className={cn(
-                                "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
-                                locked
-                                  ? "cursor-not-allowed border-border/30 bg-transparent opacity-50"
-                                  : on ? "border-border bg-secondary/40" : "border-border/50 bg-transparent",
-                              )}
-                            >
-                              <span
-                                className="mt-1 h-3 w-3 shrink-0 rounded-sm"
-                                style={{
-                                  backgroundColor: locked ? "transparent" : on ? t.color : "transparent",
-                                  border: `1px solid ${locked ? "currentColor" : t.color}`,
-                                }}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-sm font-semibold">{t.name}</span>
-                                  {locked ? (
-                                    <Lock className="h-3 w-3 shrink-0 text-amber-400" />
-                                  ) : (
-                                    <span className="tabular rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                      {zoneCount(t.id)}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                                  {locked ? "Active membership required" : t.description}
-                                </p>
-                              </div>
-                              {!locked && (
-                                <span
-                                  className={cn(
-                                    "mt-0.5 flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors",
-                                    on ? "bg-primary" : "bg-secondary",
-                                  )}
-                                >
-                                  <span
-                                    className={cn(
-                                      "h-3 w-3 rounded-full bg-background transition-transform",
-                                      on && "translate-x-3",
-                                    )}
-                                  />
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-3">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Detected zones
-                  </div>
-                  <div className="scroll-thin max-h-56 space-y-1 overflow-y-auto">
-                    {zones.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        No active zones. Enable a tool.
-                      </p>
-                    ) : (
-                      zones
-                        .slice()
-                        .reverse()
-                        .map((z) => {
-                          const meta = TOOLS.find((t) => t.id === z.tool)!;
-                          return (
-                            <div
-                              key={z.id}
-                              className="flex items-center gap-2 rounded-md bg-background/50 px-2 py-1.5"
-                            >
-                              <span
-                                className="h-2 w-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: meta.color }}
-                              />
-                              <span className="text-xs font-medium">{z.label}</span>
-                              <span className="tabular ml-auto text-[11px] text-muted-foreground">
-                                {z.price != null
-                                  ? formatPrice(z.price, pair.digits)
-                                  : formatPrice(z.priceLow!, pair.digits)}
-                              </span>
-                            </div>
-                          );
-                        })
-                    )}
-                  </div>
-                </div>
-              </div>
-            </aside>
-          </>
-        )}
-      </div>
-
-      {/* ── Timeframe context menu (long-press / right-click) ──────────── */}
-      {menu && (
-        <>
-          <div className="fixed inset-0 z-[60]" onClick={() => setMenu(null)} />
-          <div
-            className="fixed z-[61] w-44 overflow-hidden rounded-lg border border-border bg-panel py-1 shadow-2xl"
-            style={{ left: menu.x, top: Math.min(menu.y, window.innerHeight - 220) }}
-          >
-            <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {getTimeframe(menu.id).label} timeframe
-            </div>
-            <MenuItem
-              icon={<ArrowLeft className="h-3.5 w-3.5" />}
-              label="Move left"
-              onClick={() => {
-                bar.moveLeft(menu.id);
-                setMenu(null);
-              }}
-            />
-            <MenuItem
-              icon={<ArrowRight className="h-3.5 w-3.5" />}
-              label="Move right"
-              onClick={() => {
-                bar.moveRight(menu.id);
-                setMenu(null);
-              }}
-            />
-            <MenuItem
-              icon={<Pencil className="h-3.5 w-3.5" />}
-              label="Edit"
-              onClick={() => {
-                setEditId(menu.id);
-                setEditInput(menu.id);
-                setCustomError("");
-                setMenu(null);
-              }}
-            />
-            <MenuItem
-              icon={<PinOff className="h-3.5 w-3.5" />}
-              label="Unpin"
-              onClick={() => {
-                bar.unpin(menu.id);
-                setMenu(null);
-              }}
-            />
-            <MenuItem
-              icon={<Trash2 className="h-3.5 w-3.5" />}
-              label="Delete"
-              danger
-              onClick={() => {
-                bar.unpin(menu.id);
-                setMenu(null);
-              }}
-            />
-          </div>
-        </>
-      )}
-
-      {/* ── Edit timeframe dialog ──────────────────────────────────────── */}
-      {editId && (
-        <>
-          <div
-            className="fixed inset-0 z-[70] bg-background/60 backdrop-blur-sm"
-            onClick={() => setEditId(null)}
-          />
-          <div className="fixed left-1/2 top-1/2 z-[71] w-72 -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-panel p-4 shadow-2xl">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <Pin className="h-4 w-4 text-primary" /> Edit timeframe
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                commitEdit();
-              }}
-            >
-              <input
-                autoFocus
-                value={editInput}
-                onChange={(e) => {
-                  setEditInput(e.target.value);
-                  setCustomError("");
-                }}
-                placeholder="e.g. 2h, 45m, 3d"
-                className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-primary"
-              />
-              {customError && <p className="mt-1 text-[11px] text-bear">{customError}</p>}
-              <p className="mt-1 text-[10px] text-muted-foreground/60">
-                Preview:{" "}
-                <span className="font-semibold text-foreground">
-                  {parseTimeframe(editInput)?.label ?? "—"}
-                </span>
-              </p>
-              <div className="mt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditId(null)}
-                  className="rounded px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </>
-      )}
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {particles.map((p, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full bg-blue-400"
+          style={{
+            width: p.size,
+            height: p.size,
+            top: p.top,
+            left: p.left,
+            opacity: 0.35,
+            animation: `particleFloat ${p.duration} ease-in-out infinite`,
+            animationDelay: p.delay,
+          }}
+        />
+      ))}
+      {/* Animated grid lines overlay */}
+      <svg className="absolute inset-0 h-full w-full opacity-[0.06]" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#60A5FA" strokeWidth="0.5" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
     </div>
   );
 }
 
-// ─── Small UI helpers ─────────────────────────────────────────────────────────
-
-function HeaderAuth() {
-  const { session, loading } = useAuthSession();
-  if (loading) return null;
-  if (!session) {
-    return (
-      <Link
-        to="/login"
-        className="flex items-center gap-1.5 rounded-md border border-sky-400/40 bg-sky-400/10 px-2.5 py-1.5 text-xs font-medium text-sky-300 transition-colors hover:bg-sky-400/20"
-      >
-        Login
-      </Link>
+/* ─── Scroll-reveal hook ────────────────────────────────────────────────── */
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      { threshold: 0.15 }
     );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, visible };
+}
+
+/* ─── Feature card ─────────────────────────────────────────────────────── */
+function FeatureCard({
+  icon, title, desc, delay,
+}: { icon: React.ReactNode; title: string; desc: string; delay: string }) {
+  const { ref, visible } = useReveal();
+  return (
+    <div
+      ref={ref}
+      style={{
+        transitionDelay: delay,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(24px)",
+        transition: "opacity 0.55s cubic-bezier(0.22,1,0.36,1), transform 0.55s cubic-bezier(0.22,1,0.36,1)",
+      }}
+      className="flex flex-col items-start gap-4 rounded-2xl border border-blue-900/40 bg-[#0F2448]/80 p-6 backdrop-blur-sm"
+    >
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30">
+        {icon}
+      </div>
+      <div>
+        <h3 className="mb-1 text-base font-semibold text-white">{title}</h3>
+        <p className="text-sm leading-relaxed text-blue-200/70">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Landing page ──────────────────────────────────────────────────────── */
+function LandingPage() {
+  const authRef = useRef<HTMLDivElement>(null);
+
+  function scrollToAuth() {
+    authRef.current?.scrollIntoView({ behavior: "smooth" });
   }
-  const name =
-    (session.user?.user_metadata?.full_name as string | undefined) ??
-    session.user?.email ??
-    "Account";
+
+  const { ref: featuresRef, visible: featuresVisible } = useReveal();
+  const { ref: authRevealRef, visible: authRevealVisible } = useReveal();
+
   return (
-    <Link
-      to="/dashboard"
-      className="flex items-center gap-1.5 rounded-md border border-sky-400/40 bg-sky-400/10 px-2.5 py-1.5 text-xs font-medium text-sky-300 transition-colors hover:bg-sky-400/20"
-      title="Open dashboard"
-    >
-      <UserIcon className="h-3.5 w-3.5" />
-      <span className="max-w-[140px] truncate">{name}</span>
-    </Link>
-  );
-}
+    <div className="min-h-screen overflow-x-hidden" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
 
+      {/* ══════════════════════════════════════════════════════
+          HERO SECTION — dark navy, full screen
+      ════════════════════════════════════════════════════════ */}
+      <section
+        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
+        style={{
+          background: "linear-gradient(160deg, #071325 0%, #0B1D3A 45%, #0D2352 75%, #091429 100%)",
+        }}
+      >
+        <FloatingParticles />
 
-function MenuItem({
-  icon,
-  label,
-  onClick,
-  danger,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium transition-colors hover:bg-secondary/60",
-        danger ? "text-bear" : "text-foreground",
-      )}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
+        {/* Glow blobs */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/4 -translate-x-1/2"
+          style={{
+            width: 600,
+            height: 400,
+            background: "radial-gradient(ellipse, rgba(37,99,235,0.18) 0%, transparent 70%)",
+            filter: "blur(40px)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute bottom-1/4 right-1/4"
+          style={{
+            width: 300,
+            height: 250,
+            background: "radial-gradient(ellipse, rgba(96,165,250,0.12) 0%, transparent 70%)",
+            filter: "blur(32px)",
+          }}
+        />
 
-const FEED_META: Record<FeedStatus, { label: string; dot: string; pulse: boolean }> = {
-  live: { label: "Live", dot: "bg-bull", pulse: true },
-  connecting: { label: "Connecting", dot: "bg-primary", pulse: true },
-  partial: { label: "Live (no history)", dot: "bg-amber-500", pulse: true },
-  error: { label: "Error", dot: "bg-bear", pulse: false },
-};
+        {/* Nav bar */}
+        <nav
+          className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-6 py-5"
+          style={{ animation: "heroReveal 0.6s cubic-bezier(0.22,1,0.36,1) both" }}
+        >
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="MF SMC Logo" className="h-9 w-9 rounded-xl object-cover shadow-lg" />
+            <span className="text-base font-bold tracking-tight text-white">MF SMC Trader</span>
+          </div>
+          <Link
+            to="/login"
+            className="rounded-xl border border-blue-500/40 bg-blue-600/15 px-4 py-2 text-sm font-semibold text-blue-300 backdrop-blur-sm transition-all hover:bg-blue-600/30 hover:text-white hover:border-blue-400/60"
+          >
+            Sign in
+          </Link>
+        </nav>
 
-function FeedBadge({ status, onRetry }: { status: FeedStatus; onRetry: () => void }) {
-  const meta = FEED_META[status];
-  return (
-    <button
-      onClick={status === "error" || status === "partial" ? onRetry : undefined}
-      title={
-        status === "partial"
-          ? "Live ticks are streaming, but historical bars couldn't load from Twelve Data"
-          : undefined
-      }
-      className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-2.5 py-1"
-    >
-      {status === "connecting" ? (
-        <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" />
-      ) : (
-        <span className={cn("h-2 w-2 rounded-full", meta.dot, meta.pulse && "live-dot")} />
-      )}
-      <span className="text-[11px] font-medium text-muted-foreground">{meta.label}</span>
-    </button>
-  );
-}
+        {/* Hero content */}
+        <div
+          className="relative z-10 flex max-w-4xl flex-col items-center gap-8"
+          style={{ animation: "heroReveal 0.75s 0.15s cubic-bezier(0.22,1,0.36,1) both" }}
+        >
+          {/* Badge */}
+          <div className="flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-600/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-300 backdrop-blur-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" style={{ animation: "livePulse 2s infinite" }} />
+            Live Market Data · SMC Analysis
+          </div>
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="hidden flex-col sm:flex">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className="tabular text-sm font-medium">{value}</span>
+          {/* Headline */}
+          <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
+            Trade Smarter with{" "}
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: "linear-gradient(135deg, #60A5FA 0%, #2563EB 50%, #93C5FD 100%)" }}
+            >
+              Smart Money
+            </span>
+          </h1>
+
+          {/* Tagline */}
+          <p className="max-w-xl text-lg leading-relaxed text-blue-200/80 sm:text-xl">
+            Professional Forex terminal with real-time SMC zones, live candlestick charts, and institutional-grade analysis tools.
+          </p>
+
+          {/* Illustration */}
+          <div
+            className="w-full max-w-sm"
+            style={{ animation: "heroReveal 0.9s 0.3s cubic-bezier(0.22,1,0.36,1) both" }}
+          >
+            <CandlestickIllustration />
+          </div>
+
+          {/* CTA buttons */}
+          <div
+            className="flex flex-col items-center gap-3 sm:flex-row"
+            style={{ animation: "heroReveal 0.75s 0.45s cubic-bezier(0.22,1,0.36,1) both" }}
+          >
+            <button
+              onClick={scrollToAuth}
+              className="group flex items-center gap-2 rounded-2xl px-8 py-3.5 text-base font-bold text-white shadow-lg transition-all hover:scale-105 hover:shadow-blue-500/30"
+              style={{
+                background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                boxShadow: "0 8px 28px rgba(37,99,235,0.35)",
+              }}
+            >
+              Get Started Free
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </button>
+            <Link
+              to="/terminal"
+              className="flex items-center gap-2 rounded-2xl border border-blue-500/30 bg-white/5 px-8 py-3.5 text-base font-semibold text-blue-200 backdrop-blur-sm transition-all hover:bg-white/10 hover:text-white"
+            >
+              <BarChart2 className="h-4 w-4" />
+              Open Terminal
+            </Link>
+          </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <button
+          onClick={scrollToAuth}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5 text-blue-400/60 transition-colors hover:text-blue-300"
+          aria-label="Scroll down"
+        >
+          <span className="text-[11px] font-medium uppercase tracking-widest">Scroll</span>
+          <ChevronDown className="h-5 w-5" style={{ animation: "scrollBounce 1.8s ease-in-out infinite" }} />
+        </button>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════
+          FEATURES SECTION — deep navy
+      ════════════════════════════════════════════════════════ */}
+      <section
+        className="relative px-6 py-20"
+        style={{ background: "linear-gradient(180deg, #091429 0%, #0B1D3A 100%)" }}
+      >
+        <div className="mx-auto max-w-5xl">
+          {/* Section heading */}
+          <div
+            ref={featuresRef}
+            style={{
+              opacity: featuresVisible ? 1 : 0,
+              transform: featuresVisible ? "translateY(0)" : "translateY(20px)",
+              transition: "opacity 0.6s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1)",
+            }}
+            className="mb-14 text-center"
+          >
+            <h2 className="mb-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+              Everything you need to trade professionally
+            </h2>
+            <p className="mx-auto max-w-xl text-base text-blue-200/60">
+              Built for traders who want institutional-grade analysis in a clean, fast platform.
+            </p>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <FeatureCard
+              icon={<TrendingUp className="h-5 w-5" />}
+              title="Live Market Data"
+              desc="Real-time forex prices streamed directly to your terminal without delay."
+              delay="0ms"
+            />
+            <FeatureCard
+              icon={<BarChart2 className="h-5 w-5" />}
+              title="SMC Zones"
+              desc="Auto-detect Order Blocks, FVGs, BOS/CHoCH, and liquidity levels."
+              delay="80ms"
+            />
+            <FeatureCard
+              icon={<Zap className="h-5 w-5" />}
+              title="Custom Timeframes"
+              desc="Pin any timeframe from 1 minute to monthly. Long-press to manage."
+              delay="160ms"
+            />
+            <FeatureCard
+              icon={<Shield className="h-5 w-5" />}
+              title="Multi-Pair Watchlist"
+              desc="Monitor 15+ forex pairs simultaneously with live price updates."
+              delay="240ms"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════
+          AUTH SECTION — white / off-white background
+      ════════════════════════════════════════════════════════ */}
+      <section
+        ref={authRef}
+        className="relative px-6 py-24"
+        style={{ background: "linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%)" }}
+      >
+        {/* Decorative top curve */}
+        <div
+          className="absolute left-0 right-0 top-0 h-12"
+          style={{
+            background: "#0B1D3A",
+            clipPath: "ellipse(55% 100% at 50% 0%)",
+          }}
+        />
+
+        <div
+          ref={authRevealRef}
+          style={{
+            opacity: authRevealVisible ? 1 : 0,
+            transform: authRevealVisible ? "translateY(0)" : "translateY(28px)",
+            transition: "opacity 0.65s cubic-bezier(0.22,1,0.36,1), transform 0.65s cubic-bezier(0.22,1,0.36,1)",
+          }}
+          className="mx-auto max-w-2xl"
+        >
+          {/* Heading */}
+          <div className="mb-12 text-center">
+            <h2 className="mb-3 text-3xl font-extrabold tracking-tight text-[#0B1D3A] sm:text-4xl">
+              Ready to start trading?
+            </h2>
+            <p className="text-base text-[#4A7FA5]">
+              Create a free account or sign in to access the full terminal.
+            </p>
+          </div>
+
+          {/* Auth cards */}
+          <div className="grid gap-5 sm:grid-cols-2">
+            {/* Login card */}
+            <Link
+              to="/login"
+              className="group flex flex-col items-center gap-5 rounded-3xl border-2 border-[#E0EFFF] bg-white p-8 shadow-sm transition-all hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl"
+              style={{ transitionDuration: "250ms" }}
+            >
+              <div
+                className="flex h-16 w-16 items-center justify-center rounded-2xl text-white shadow-lg transition-transform group-hover:scale-110"
+                style={{
+                  background: "linear-gradient(135deg, #0B1D3A 0%, #162D52 100%)",
+                  boxShadow: "0 8px 24px rgba(11,29,58,0.25)",
+                  transitionDuration: "250ms",
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className="mb-1 text-xl font-bold text-[#0B1D3A]">Sign In</div>
+                <div className="text-sm text-[#4A7FA5]">Access your existing account</div>
+              </div>
+              <div
+                className="w-full rounded-xl py-3 text-center text-sm font-bold text-white transition-all group-hover:shadow-lg"
+                style={{
+                  background: "linear-gradient(135deg, #0B1D3A 0%, #162D52 100%)",
+                  transitionDuration: "250ms",
+                }}
+              >
+                Login →
+              </div>
+            </Link>
+
+            {/* Register card */}
+            <Link
+              to="/register"
+              className="group flex flex-col items-center gap-5 rounded-3xl border-2 border-[#E0EFFF] bg-white p-8 shadow-sm transition-all hover:-translate-y-1 hover:border-blue-500 hover:shadow-xl"
+              style={{ transitionDuration: "250ms" }}
+            >
+              <div
+                className="flex h-16 w-16 items-center justify-center rounded-2xl text-white shadow-lg transition-transform group-hover:scale-110"
+                style={{
+                  background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                  boxShadow: "0 8px 24px rgba(37,99,235,0.3)",
+                  transitionDuration: "250ms",
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className="mb-1 text-xl font-bold text-[#0B1D3A]">Create Account</div>
+                <div className="text-sm text-[#4A7FA5]">Start for free, no credit card</div>
+              </div>
+              <div
+                className="w-full rounded-xl py-3 text-center text-sm font-bold text-white transition-all group-hover:shadow-lg"
+                style={{
+                  background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                  transitionDuration: "250ms",
+                }}
+              >
+                Register →
+              </div>
+            </Link>
+          </div>
+
+          {/* Terminal shortcut */}
+          <div className="mt-8 text-center">
+            <Link
+              to="/terminal"
+              className="inline-flex items-center gap-2 text-sm font-medium text-[#4A7FA5] transition-colors hover:text-[#2563EB]"
+            >
+              <BarChart2 className="h-4 w-4" />
+              Continue without account — open terminal
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════
+          FOOTER
+      ════════════════════════════════════════════════════════ */}
+      <footer
+        className="border-t border-[#1E3A6E] px-6 py-8 text-center"
+        style={{ background: "#071325" }}
+      >
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <img src="/logo.png" alt="MF SMC" className="h-6 w-6 rounded-lg object-cover opacity-80" />
+          <span className="text-sm font-semibold text-white/60">MF SMC Trader</span>
+        </div>
+        <p className="text-xs text-blue-300/30">
+          Professional Forex SMC Analysis Terminal · {new Date().getFullYear()}
+        </p>
+      </footer>
+
+      {/* Global keyframes for this page */}
+      <style>{`
+        @keyframes heroReveal {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scrollBounce {
+          0%, 100% { transform: translateY(0); }
+          50%       { transform: translateY(6px); }
+        }
+        @keyframes particleFloat {
+          0%, 100% { transform: translate(0, 0); }
+          33%       { transform: translate(6px, -10px); }
+          66%       { transform: translate(-5px, 5px); }
+        }
+        @keyframes livePulse {
+          0%   { box-shadow: 0 0 0 0 rgba(52,211,153,0.55); }
+          60%  { box-shadow: 0 0 0 6px transparent; }
+          100% { box-shadow: 0 0 0 0 transparent; }
+        }
+      `}</style>
     </div>
   );
 }

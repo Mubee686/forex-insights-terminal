@@ -15,6 +15,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TerminalRouteImport } from './routes/terminal'
 import { Route as ApiPriceStreamRouteImport } from './routes/api.price-stream'
 import { Route as ApiPublicHooksMembershipExpiryCheckRouteImport } from './routes/api.public.hooks.membership-expiry-check'
 
@@ -48,6 +49,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TerminalRoute = TerminalRouteImport.update({
+  id: '/terminal',
+  path: '/terminal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPriceStreamRoute = ApiPriceStreamRouteImport.update({
   id: '/api/price-stream',
   path: '/api/price-stream',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terminal': typeof TerminalRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
   '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terminal': typeof TerminalRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
   '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terminal': typeof TerminalRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
   '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/sitemap.xml'
+    | '/terminal'
     | '/api/price-stream'
     | '/api/public/hooks/membership-expiry-check'
   fileRoutesByTo: FileRoutesByTo
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/sitemap.xml'
+    | '/terminal'
     | '/api/price-stream'
     | '/api/public/hooks/membership-expiry-check'
   id:
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/sitemap.xml'
+    | '/terminal'
     | '/api/price-stream'
     | '/api/public/hooks/membership-expiry-check'
   fileRoutesById: FileRoutesById
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TerminalRoute: typeof TerminalRoute
   ApiPriceStreamRoute: typeof ApiPriceStreamRoute
   ApiPublicHooksMembershipExpiryCheckRoute: typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
@@ -179,6 +192,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terminal': {
+      id: '/terminal'
+      path: '/terminal'
+      fullPath: '/terminal'
+      preLoaderRoute: typeof TerminalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/price-stream': {
       id: '/api/price-stream'
       path: '/api/price-stream'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TerminalRoute: TerminalRoute,
   ApiPriceStreamRoute: ApiPriceStreamRoute,
   ApiPublicHooksMembershipExpiryCheckRoute:
     ApiPublicHooksMembershipExpiryCheckRoute,
