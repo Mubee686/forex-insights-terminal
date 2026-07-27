@@ -37,7 +37,7 @@ export const TOOLS: ToolMeta[] = [
     name: "Inducement",
     short: "IDM",
     color: "#fb923c",
-    tier: "premium",
+    tier: "free",
     description: "Minor liquidity swing used to lure traders before the real move.",
   },
   {
@@ -45,7 +45,7 @@ export const TOOLS: ToolMeta[] = [
     name: "Break of Structure",
     short: "BOS",
     color: "#34d399",
-    tier: "premium",
+    tier: "free",
     description: "Trend continuation break of a prior swing point.",
   },
   {
