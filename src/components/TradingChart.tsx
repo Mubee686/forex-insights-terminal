@@ -23,7 +23,7 @@ import {
 
 import type { Candle } from "@/lib/forex";
 import { formatPrice } from "@/lib/forex";
-import { TOOLS, detectAllBOS, type Zone, type ToolId } from "@/lib/smc";
+import { TOOLS, detectAllBOS, detectVisibleIDM, type Zone, type ToolId } from "@/lib/smc";
 
 export type ChartType = "candlestick" | "line";
 
@@ -168,6 +168,7 @@ export function TradingChart({
   // BOS detection cache — keyed by candle count + last timestamp so we only
   // recompute when new data arrives, not on every pan / zoom / rAF tick.
   const bosCacheRef = useRef<{ key: string; result: ReturnType<typeof detectAllBOS> } | null>(null);
+  const idmCacheRef = useRef<{ key: string; result: Zone[] } | null>(null);
 
   // Track previous candles to decide setData vs update
   const prevCandlesRef = useRef<Candle[]>([]);
@@ -220,6 +221,9 @@ export function TradingChart({
 
     const ts = chart.timeScale();
     const paneRight = ts.width();
+    const visibleRange = ts.getVisibleLogicalRange();
+    const visibleFrom = visibleRange ? Math.floor(visibleRange.from) : 0;
+    const visibleTo = visibleRange ? Math.ceil(visibleRange.to) : cs.length - 1;
 
     const xOf = (idx: number): number | null => {
       const i = Math.max(0, Math.min(cs.length - 1, idx));
@@ -232,7 +236,35 @@ export function TradingChart({
       return y == null ? null : y;
     };
 
-    for (const z of zonesRef.current) {
+    const idmEnabled = enabledToolsRef.current.has("idm");
+    const lastCandle = cs[cs.length - 1];
+    const idmCacheKey = [
+      cs.length,
+      lastCandle?.time ?? 0,
+      lastCandle?.high ?? 0,
+      lastCandle?.low ?? 0,
+      lastCandle?.close ?? 0,
+      visibleFrom,
+      visibleTo,
+    ].join(":");
+    if (idmEnabled && cs.length >= 15) {
+      if (!idmCacheRef.current || idmCacheRef.current.key !== idmCacheKey) {
+        idmCacheRef.current = {
+          key: idmCacheKey,
+          result: detectVisibleIDM(cs, visibleFrom, visibleTo),
+        };
+      }
+    } else {
+      idmCacheRef.current = null;
+    }
+    const visibleIDM = idmEnabled ? (idmCacheRef.current?.result ?? []) : [];
+
+    // The general analysis covers the fetched history. IDM is different:
+    // only the detector result for the currently visible window is drawable.
+    for (const z of [
+      ...zonesRef.current.filter((zone) => zone.tool !== "idm"),
+      ...visibleIDM,
+    ]) {
       const baseColor = toolColor(z.tool);
       // Swept IDM renders faded; everything else at full opacity
       const alpha = z.tool === "idm" && z.swept ? 0.35 : 1;
@@ -351,13 +383,9 @@ export function TradingChart({
       const { bos: bosAll, choch: chochAll } = bosCacheRef.current.result;
 
       // Filter to zones that overlap the visible logical (candle-index) range.
-      const visRange = ts.getVisibleLogicalRange();
-      const visFrom  = visRange ? Math.floor(visRange.from) : 0;
-      const visTo    = visRange ? Math.ceil(visRange.to)    : cs.length - 1;
-
       const visibleBOS: Zone[] = [];
-      if (bosEnabled)   visibleBOS.push(...bosAll.filter((z)  => z.endIndex >= visFrom && z.startIndex <= visTo));
-      if (chochEnabled) visibleBOS.push(...chochAll.filter((z) => z.endIndex >= visFrom && z.startIndex <= visTo));
+      if (bosEnabled)   visibleBOS.push(...bosAll.filter((z)  => z.endIndex >= visibleFrom && z.startIndex <= visibleTo));
+      if (chochEnabled) visibleBOS.push(...chochAll.filter((z) => z.endIndex >= visibleFrom && z.startIndex <= visibleTo));
 
       for (const z of visibleBOS) {
         if (z.price == null) continue;

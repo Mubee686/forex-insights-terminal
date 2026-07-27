@@ -3,3 +3,4 @@
 - [Overlay canvas z-index](overlay-canvas-zindex.md) — must set zIndex:2 on overlay canvas or lightweight-charts' internal canvases render on top.
 - [TanStack route metadata](tanstack-route-metadata.md) — dev startup can reorder generated route metadata; stop the workflow before restoring a CSS-only diff.
 - [Bun project lockfiles](bun-project-lockfiles.md) — package-management installs may create package-lock.json; remove it when the repo uses Bun and no npm lockfile was present.
+- [IDM chart scope](idm-chart-scope.md) — IDM detection must run from the chart's visible logical candle window and emit only one confirmed sweep per active structure.

@@ -436,6 +436,132 @@ function detectIDM(candles: Candle[], _swings: Swing[], lastIndex: number): Zone
   return zones;
 }
 
+/**
+ * Detect the single confirmed IDM inside a visible candle window.
+ *
+ * The window is intentional: IDM is a liquidity-sweep-before-structure
+ * pattern, so candles outside the current chart range must not create or
+ * preserve a marker. The returned index values are mapped back to the full
+ * candle array for chart coordinates.
+ */
+export function detectVisibleIDM(
+  candles: Candle[],
+  visibleFrom = 0,
+  visibleTo = candles.length - 1,
+): Zone[] {
+  const from = Math.max(0, Math.floor(visibleFrom));
+  const to = Math.min(candles.length - 1, Math.ceil(visibleTo));
+  if (from > to || to - from + 1 < 15) return [];
+
+  const window = candles.slice(from, to + 1);
+  const major = findSwings(window, 5);
+  const minor = findSwings(window, 2);
+  const majorHigh = major.filter((s) => s.type === "high").at(-1);
+  const majorLow = major.filter((s) => s.type === "low").at(-1);
+  if (!majorHigh || !majorLow) return [];
+
+  const findSweep = (candidate: Swing, endIndex: number) => {
+    for (let i = candidate.index + 1; i <= endIndex; i++) {
+      const candle = window[i];
+      const pierced =
+        candidate.type === "high" ? candle.high > candidate.price : candle.low < candidate.price;
+      if (!pierced) continue;
+
+      const closedBackInside =
+        candidate.type === "high" ? candle.close < candidate.price : candle.close > candidate.price;
+      if (closedBackInside) return i;
+
+      // A close-through is only a brief sweep when the next candle closes
+      // back across the level. A sustained close-through is a structure break.
+      const next = window[i + 1];
+      if (next) {
+        const nextClosedBackInside =
+          candidate.type === "high" ? next.close < candidate.price : next.close > candidate.price;
+        if (nextClosedBackInside) return i;
+      }
+      return undefined;
+    }
+    return undefined;
+  };
+
+  let candidate: Swing | undefined;
+  let sweepIndex: number | undefined;
+  let kind: ZoneKind | undefined;
+
+  if (majorLow.index < majorHigh.index) {
+    // Once the real structural high has closed beyond its level, the leg is
+    // complete and its IDM is no longer the active inducement.
+    if (window.slice(majorHigh.index + 1).some((c) => c.close > majorHigh.price)) {
+      return [];
+    }
+    // Bullish structure: buy-side liquidity above the latest internal high.
+    const candidates = minor
+      .filter(
+        (s) =>
+          s.type === "high" &&
+          s.index > majorLow.index &&
+          s.index < majorHigh.index &&
+          s.price < majorHigh.price,
+      )
+      .sort((a, b) => b.index - a.index);
+    for (const point of candidates) {
+      const sweptAt = findSweep(point, majorHigh.index - 1);
+      if (sweptAt != null) {
+        candidate = point;
+        sweepIndex = sweptAt;
+        kind = "bullish";
+        break;
+      }
+    }
+  } else {
+    // Same invalidation for a bearish leg: a close below the structural low
+    // is the actual break, not a sweep of the preceding inducement.
+    if (window.slice(majorLow.index + 1).some((c) => c.close < majorLow.price)) {
+      return [];
+    }
+    // Bearish structure: sell-side liquidity below the latest internal low.
+    const candidates = minor
+      .filter(
+        (s) =>
+          s.type === "low" &&
+          s.index > majorHigh.index &&
+          s.index < majorLow.index &&
+          s.price > majorLow.price,
+      )
+      .sort((a, b) => b.index - a.index);
+    for (const point of candidates) {
+      const sweptAt = findSweep(point, majorLow.index - 1);
+      if (sweptAt != null) {
+        candidate = point;
+        sweepIndex = sweptAt;
+        kind = "bearish";
+        break;
+      }
+    }
+  }
+
+  if (!candidate || sweepIndex == null || !kind) return [];
+  const startIndex = from + candidate.index;
+  const globalSweepIndex = from + sweepIndex;
+  return [
+    {
+      id: `idm-${kind === "bullish" ? "up" : "down"}-${startIndex}`,
+      tool: "idm",
+      kind,
+      startIndex,
+      endIndex: globalSweepIndex,
+      price: candidate.price,
+      swept: true,
+      sweepIndex: globalSweepIndex,
+      label: "IDM ✓",
+      detail:
+        kind === "bullish"
+          ? "Bullish IDM swept — internal high taken before the structural high"
+          : "Bearish IDM swept — internal low taken before the structural low",
+    },
+  ];
+}
+
 function detectPOI(orderBlocks: Zone[], fvgs: Zone[]): Zone[] {
   const zones: Zone[] = [];
   for (const ob of orderBlocks) {
@@ -564,7 +690,10 @@ export function analyze(candles: Candle[]): AnalysisResult {
   const orderBlocks = detectOrderBlocks(candles, structure.obSeeds, lastIndex);
   const liquidity = detectLiquidity(candles, swings, lastIndex);
   const poi = detectPOI(orderBlocks, fvg);
-  const idm = detectIDM(candles, swings, lastIndex);
+  // IDM is intentionally chart-window scoped. TradingChart calls
+  // detectVisibleIDM with the current logical range instead of using the
+  // full-history analysis result here.
+  const idm: Zone[] = [];
 
   return {
     orderBlocks,
