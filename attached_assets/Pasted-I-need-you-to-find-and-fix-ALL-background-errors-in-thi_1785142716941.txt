@@ -1,0 +1,30 @@
+I need you to find and fix ALL background errors in this project, and also fix the slow landing page performance. Follow this process exactly and do not stop until everything is verified working.
+
+PART 1 — FIND AND FIX ALL ERRORS:
+1. Go through the entire codebase (frontend, backend, API calls, console logs, network requests) and identify every error currently happening in the background — including console errors, failed API/network requests, broken imports, unhandled promise rejections, React warnings, build warnings, and Supabase/database connection errors.
+2. For each error found, identify the root cause (not just a surface-level suppress/fix) and fix it properly.
+3. Do not silence or hide errors with try/catch blocks that just swallow them — actually fix why they're happening.
+4. Prioritize fixing errors that affect core functionality (login, data loading, chart rendering, SMC analysis features) first, then move to minor console warnings.
+
+PART 2 — FIX SLOW LANDING PAGE:
+1. Diagnose why the landing page is loading/rendering slowly. Check for:
+   - Large unoptimized images or assets loading on initial page load
+   - Unnecessary API calls or data fetching happening before the page is interactive
+   - Render-blocking scripts or heavy JavaScript bundles
+   - Missing lazy-loading for below-the-fold content
+   - Unoptimized fonts or third-party scripts
+   - Any redundant re-renders in React components
+2. Apply proper fixes: lazy loading, code splitting, image optimization, deferring non-critical scripts, reducing initial bundle size, and removing/optimizing any blocking API calls on first load.
+3. The landing page should load fast and feel instant/snappy — not just "a bit faster."
+
+VERIFICATION LOOP — DO NOT STOP UNTIL THIS IS CORRECT:
+After making fixes, test the site yourself:
+- Reload the site and check the console — are there still any errors or warnings?
+- Time how long the landing page takes to become interactive — is it noticeably fast now?
+- Navigate through the main pages/features (login, dashboard, charts) — do any new errors appear?
+
+If you find ANY remaining errors or the landing page is still slow, go back and keep fixing — repeat this test-and-fix cycle. Do not report this as "done" or "fixed" until you have verified, through actual testing, that:
+1. The console/logs show zero errors during normal usage (loading site, logging in, navigating pages, viewing charts).
+2. The landing page loads noticeably fast with no lag or delay.
+
+Keep looping through find-fix-verify until both conditions are fully met. Do not settle for a partial fix or report success prematurely.

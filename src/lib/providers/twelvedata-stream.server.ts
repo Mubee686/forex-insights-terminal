@@ -80,8 +80,28 @@ async function poll(symbol: string) {
  * Subscribe to live ticks for a display symbol (e.g. "EUR/USD").
  * Returns an unsubscribe function. Lazily starts polling on first
  * subscriber; stops polling when the last local listener unsubscribes.
+ *
+ * If TWELVEDATA_API_KEY is not set the function returns a no-op immediately
+ * — a single warning is logged once at startup so the server log stays clean
+ * instead of repeating the same error every 8 s.
  */
 export function subscribeTicks(symbol: string, onTick: Listener): () => void {
+  // Guard: refuse to start polling when the API key is absent.
+  const apiKey = process.env.TWELVEDATA_API_KEY ?? process.env.TWELVE_DATA_API_KEY;
+  if (!apiKey) {
+    // Log once globally (across HMR reloads) so the message appears exactly
+    // once in the server console, not on every SSE connection.
+    const g = globalThis as unknown as Record<string, boolean | undefined>;
+    if (!g.__twelveDataKeyWarned__) {
+      g.__twelveDataKeyWarned__ = true;
+      console.warn(
+        "[twelvedata] TWELVEDATA_API_KEY is not set — live price feed disabled. " +
+        "Add the secret to enable real-time prices.",
+      );
+    }
+    return () => {}; // no-op unsubscribe — no timer started
+  }
+
   const state = getState();
 
   if (!state.listeners.has(symbol)) {
