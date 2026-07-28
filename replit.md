@@ -1,7 +1,7 @@
 # MF SMC Trader
 
 ## Overview
-A live forex trading terminal with TradingView-style candlestick charts and Smart Money Concept (SMC) analysis tools (Order Blocks, Liquidity, POI, etc.). Imported from Lovable.
+A live forex trading terminal with TradingView-style candlestick charts and Smart Money Concept (SMC) analysis tools (Order Blocks, Liquidity, POI, etc.).
 
 ## Stack
 - TanStack Start (React 19 + Vite + file-based router via `@tanstack/react-router`)

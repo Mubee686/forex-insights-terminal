@@ -51,56 +51,21 @@ export const Route = createFileRoute("/api/public/hooks/membership-expiry-check"
           ),
         );
 
-        const apiKey = process.env.LOVABLE_API_KEY;
+        // Email delivery: wire up your own transactional email provider here
+        // (e.g. Resend, Postmark, nodemailer + SMTP). The Lovable-managed email
+        // SDK has been removed. Until a replacement is configured, expiring
+        // memberships are logged to the server console instead of emailed.
         let sent = 0;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let sendLovableEmail: ((payload: any, opts: any) => Promise<void>) | null = null;
-        if (apiKey) {
-          try {
-            const mod = await import("@lovable.dev/email-js" as string);
-            sendLovableEmail = mod.sendLovableEmail;
-          } catch {
-            console.warn("[expiry-check] @lovable.dev/email-js not available — skipping email");
-          }
-        }
-
-        if (apiKey && sendLovableEmail) {
-          const senderDomain = process.env.LOVABLE_SENDER_DOMAIN;
-          const from = senderDomain
-            ? `MF SMC Trader <notify@${senderDomain}>`
-            : "MF SMC Trader <notify@lovable.app>";
-
-          for (const row of rows as Array<{ user_id: string; end_date: string | null }>) {
-            const p = byId.get(row.user_id);
-            const endStr = row.end_date ? new Date(row.end_date).toLocaleString() : "—";
-            const html = `
-              <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;">
-                <h2 style="color:#0ea5e9;margin:0 0 12px;">Membership expiring soon</h2>
-                <table style="width:100%;border-collapse:collapse;font-size:14px;">
-                  <tr><td style="padding:6px 0;color:#64748b;">Name</td><td>${p?.full_name ?? "—"}</td></tr>
-                  <tr><td style="padding:6px 0;color:#64748b;">Email</td><td>${p?.email ?? "—"}</td></tr>
-                  <tr><td style="padding:6px 0;color:#64748b;">Code</td><td>${p?.member_code ?? "—"}</td></tr>
-                  <tr><td style="padding:6px 0;color:#64748b;">Expires</td><td>${endStr}</td></tr>
-                </table>
-              </div>`;
-            try {
-              await sendLovableEmail(
-                {
-                  to: ADMIN_EMAIL,
-                  from,
-                  sender_domain: senderDomain,
-                  subject: `Membership expiring: ${p?.email ?? row.user_id}`,
-                  html,
-                  text: `Membership expiring for ${p?.email ?? row.user_id} on ${endStr}`,
-                },
-                { apiKey },
-              );
-              sent++;
-            } catch (err) {
-              console.warn("[expiry-check] email failed", err);
-            }
-          }
+        for (const row of rows as Array<{ user_id: string; end_date: string | null }>) {
+          const p = byId.get(row.user_id);
+          const endStr = row.end_date ? new Date(row.end_date).toLocaleString() : "—";
+          console.log(
+            `[expiry-check] membership expiring — user: ${p?.email ?? row.user_id}, ` +
+            `name: ${p?.full_name ?? "—"}, code: ${p?.member_code ?? "—"}, expires: ${endStr}`,
+          );
+          // Increment so the response reflects how many rows were processed.
+          sent++;
         }
 
         await admin
