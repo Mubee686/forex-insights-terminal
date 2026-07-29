@@ -173,7 +173,16 @@ function LandingPage() {
             <img src="/logo.png" alt="MF SMC Logo" className="h-9 w-9 rounded-xl object-cover" />
             <span className="text-base font-bold text-white">MF SMC Trader</span>
           </div>
-          <NavAuth />
+          <div className="flex items-center gap-2">
+            <Link
+              to="/futures"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-[#1E3A6E] bg-[#0D1F3C] px-3 py-2 text-sm font-semibold text-[#7BA8CC] transition-colors hover:bg-[#1A3560] hover:text-white"
+            >
+              <BarChart2 className="h-4 w-4" />
+              Futures
+            </Link>
+            <NavAuth />
+          </div>
         </nav>
 
         {/* Hero content */}

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth";
 import { ADMIN_EMAIL } from "@/lib/admin-config";
-import { activateFreeTrial, getMyMembership } from "@/lib/membership.functions";
+import { getMyMembership } from "@/lib/membership.functions";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -33,14 +33,11 @@ function Dashboard() {
   const isAdmin = session?.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   const _fetchMembership = useServerFn(getMyMembership);
   const fetchMembership = useCallback(_fetchMembership, []);
-  const _startTrial = useServerFn(activateFreeTrial);
-  const startTrial = useCallback(_startTrial, []);
 
   const [code, setCode] = useState<string | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [trialEligible, setTrialEligible] = useState(false);
-  const [trialLoading, setTrialLoading] = useState(false);
   const contactRef = useRef<HTMLDivElement>(null);
 
   function scrollToContact() {
@@ -66,20 +63,6 @@ function Dashboard() {
     if (!session) return;
     load();
   }, [session, load]);
-
-  async function claimTrial() {
-    setTrialLoading(true);
-    try {
-      await startTrial();
-      toast.success("Free trial activated — all features unlocked for 24 hours.");
-      await load();
-    } catch (err) {
-      toast.error((err as Error).message || "Could not activate free trial");
-    } finally {
-      setTrialLoading(false);
-    }
-  }
-
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -110,6 +93,12 @@ function Dashboard() {
           <span className="text-sm font-semibold text-foreground">MF SMC Trader</span>
         </Link>
         <div className="flex items-center gap-2">
+          <Link
+            to="/futures"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent"
+          >
+            <Activity className="h-4 w-4" /> Futures
+          </Link>
           {isAdmin && (
             <Link
               to="/admin"
@@ -239,33 +228,45 @@ function Dashboard() {
           <h2 className="mb-4 text-xl font-semibold text-foreground">Membership Plans</h2>
           <div className="grid gap-4 sm:grid-cols-2">
 
-            {/* Free Trial — new users only */}
+            {/* ── Free Trial — new users only ──────────────────────────── */}
             {trialEligible && (
-              <div className="relative flex flex-col rounded-2xl border border-emerald-500/40 bg-card p-6 shadow-sm sm:col-span-2">
-                <div className="absolute -top-3 left-6 rounded-full bg-emerald-500 px-3 py-0.5 text-[11px] font-bold uppercase tracking-widest text-white">
+              <div className="relative sm:col-span-2 overflow-hidden rounded-2xl border border-emerald-500/30 bg-card p-6 shadow-sm">
+                {/* "New users only" pill */}
+                <div className="absolute -top-px left-6 rounded-b-full border border-t-0 border-emerald-500/40 bg-emerald-500 px-3 pb-1 pt-0.5 text-[11px] font-bold uppercase tracking-widest text-white shadow-sm">
                   New users only
                 </div>
-                <div className="mb-1 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-emerald-400" />
-                  <span className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
-                    Free Trial
-                  </span>
+
+                <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-center">
+                  {/* Left: copy */}
+                  <div className="flex-1">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-emerald-400" />
+                      <span className="text-sm font-bold uppercase tracking-widest text-emerald-400">
+                        Free Trial
+                      </span>
+                    </div>
+                    <div className="mb-3 flex items-end gap-1">
+                      <span className="text-4xl font-extrabold text-foreground">Free</span>
+                      <span className="mb-1 text-sm text-muted-foreground">/ 24 hours</span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      Get full access to every premium SMC tool for 24 hours at no cost.
+                      One activation per account — contact us below to claim your free trial.
+                    </p>
+                  </div>
+
+                  {/* Right: CTA */}
+                  <div className="flex shrink-0 flex-col items-center gap-1.5">
+                    <button
+                      onClick={scrollToContact}
+                      className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-600 active:bg-emerald-700"
+                    >
+                      <Zap className="h-4 w-4" />
+                      Claim Free Trial
+                    </button>
+                    <span className="text-xs text-muted-foreground">No credit card needed</span>
+                  </div>
                 </div>
-                <div className="mt-2 flex items-end gap-1">
-                  <span className="text-4xl font-bold text-foreground">Free</span>
-                  <span className="mb-1 text-sm text-muted-foreground">/ 24 hours</span>
-                </div>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Unlocks every premium SMC tool for exactly 24 hours. One activation per account —
-                  it expires automatically and your account reverts to no active membership.
-                </p>
-                <button
-                  onClick={claimTrial}
-                  disabled={trialLoading}
-                  className="mt-6 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500/90 disabled:opacity-60"
-                >
-                  {trialLoading ? "Activating…" : "Start 1-day free trial"}
-                </button>
               </div>
             )}
 
