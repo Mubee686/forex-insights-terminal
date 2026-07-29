@@ -186,8 +186,8 @@ export function useMarketData(
         setBaseCandles((prev) =>
           prev.length === 0 ? appendNewCandle(prev, timeframeIdRef.current, payload.price) : prev,
         );
-        const entry = cache.get(cacheKey(symbol, timeframeId));
-        if (entry) cache.set(cacheKey(symbol, timeframeId), { ...entry, price: payload.price });
+        const entry = cache.get(cacheKey(symbol, timeframeIdRef.current));
+        if (entry) cache.set(cacheKey(symbol, timeframeIdRef.current), { ...entry, price: payload.price });
       } catch {
         // Ignore malformed frames
       }

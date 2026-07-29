@@ -1,0 +1,34 @@
+I need you to do THREE things. Follow this process exactly and do not stop until everything is verified working.
+
+PART 1 — ADD ONE-DAY FREE TRIAL FOR NEW USERS ONLY:
+1. In the membership section, add a 1-day free trial that gives full feature access.
+2. This trial must ONLY be available to genuinely new users — a user should only ever get this trial once, tied to their account (not resettable by logging out/back in, clearing cookies, or creating a new session).
+3. After exactly 24 hours from activation, the trial must automatically expire and revoke full feature access — the user should return to the normal restricted/non-member state.
+4. Make sure this trial state is checked server-side (not just in the frontend), so it can't be bypassed by manipulating local storage or client-side code.
+5. Existing users who are not new (already had an account before this feature, or already used their trial) must NOT get this free trial.
+
+PART 2 — FIX THE SUPABASE ENVIRONMENT VARIABLE ERROR:
+The app is showing this error: "Missing Supabase environment variable(s): SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY. Connect Supabase in Lovable Cloud."
+1. Find out exactly why the app isn't detecting these variables even though Supabase has already been connected through Lovable Cloud.
+2. Check for any code that reads these variables using the wrong names, wrong casing, or wrong prefix (e.g. missing VITE_ prefix on frontend reads, or reading process.env instead of import.meta.env, or vice versa).
+3. Fix the root cause so the app correctly reads the Supabase URL and key from wherever Lovable Cloud actually injects them.
+4. Make sure this fix works both in the Lovable preview environment AND after deployment — not just one or the other.
+
+PART 3 — FIND AND FIX ALL BACKGROUND ERRORS:
+1. Go through the entire codebase (frontend, backend, API calls, console) and identify every error currently happening — console errors, failed network/API requests, broken imports, unhandled promise rejections, React warnings, Supabase/database errors.
+2. Fix the actual root cause of each error — do not just suppress or hide errors with empty try/catch blocks.
+3. Prioritize errors affecting core functionality (login, membership/trial logic, chart rendering, SMC analysis) first, then minor console warnings.
+
+VERIFICATION LOOP — DO NOT STOP UNTIL THIS IS CORRECT:
+After making all fixes, test everything yourself:
+1. Create a test new user and confirm the 1-day trial activates correctly, grants full access, and expires after 24 hours.
+2. Confirm an existing/returning user does NOT get the trial again.
+3. Reload the site and check the console — is the "Missing Supabase environment variable(s)" error completely gone?
+4. Check the console/logs across the whole site (landing page, login, dashboard, charts) — are there ANY remaining errors?
+
+If ANY of these checks fail — the trial doesn't work correctly, the Supabase error still appears, or any background error remains — go back and keep fixing. Repeat this find-fix-verify cycle as many times as needed. Do NOT report this as "done" or "fixed" until you have actually verified, through real testing, that:
+- The trial system works exactly as specified, only for new users, expiring after 24 hours.
+- The Supabase environment variable error is completely resolved.
+- The console shows zero errors during normal site usage.
+
+Keep looping until all three conditions are fully met. Do not settle for a partial fix or report success prematurely.

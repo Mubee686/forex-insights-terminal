@@ -694,17 +694,20 @@ function Terminal() {
               label="Edit"
               onClick={() => { setEditId(menu.id); setEditInput(menu.id); setCustomError(""); setMenu(null); }}
             />
-            <MenuItem
-              icon={<PinOff className="h-3.5 w-3.5" />}
-              label="Unpin"
-              onClick={() => { bar.unpin(menu.id); setMenu(null); }}
-            />
-            <MenuItem
-              icon={<Trash2 className="h-3.5 w-3.5" />}
-              label="Delete"
-              danger
-              onClick={() => { bar.unpin(menu.id); setMenu(null); }}
-            />
+            {DEFAULT_TIMEFRAME_IDS.includes(menu.id) ? (
+              <MenuItem
+                icon={<PinOff className="h-3.5 w-3.5" />}
+                label="Unpin"
+                onClick={() => { bar.unpin(menu.id); setMenu(null); }}
+              />
+            ) : (
+              <MenuItem
+                icon={<Trash2 className="h-3.5 w-3.5" />}
+                label="Delete"
+                danger
+                onClick={() => { bar.unpin(menu.id); setMenu(null); }}
+              />
+            )}
           </div>
         </>
       )}
