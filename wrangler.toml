@@ -8,3 +8,4 @@ directory = "dist/client"
 binding = "ASSETS"
 [vars]
 SUPABASE_PROJECT_ID = "cgirdlkuarpzrpaybrkb"
+SESSION_SECRET = "z@FJY6AMMzD-6s!T;cA0[>2-<od'x~z_1)_(1L0P4Y$bP8L@Fd#/tk'KL;Yu&dF3}"
