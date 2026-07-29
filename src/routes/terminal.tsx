@@ -266,6 +266,12 @@ function Terminal() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            to="/futures"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Futures
+          </Link>
           <FeedBadge status={status} onRetry={refresh} />
           <HeaderAuth />
         </div>
