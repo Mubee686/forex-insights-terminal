@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Activity, LogOut, LineChart, Copy, ShieldCheck, Mail, CheckCircle2, Zap, Crown } from "lucide-react";
+import { Activity, LogOut, LineChart, Copy, ShieldCheck, Mail, CheckCircle2, Zap, Crown, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ export const Route = createFileRoute("/dashboard")({
 
 interface Membership {
   status: string;
+  plan_type: string | null;
   start_date: string | null;
   end_date: string | null;
   duration_months: number | null;
@@ -153,6 +154,24 @@ function Dashboard() {
             </p>
           </div>
 
+          {/* Active trial banner */}
+          {status === "active" && membership?.plan_type === "trial" && membership?.end_date && (
+            <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/8 px-4 py-3">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <div className="text-xs text-emerald-300">
+                <span className="font-semibold">Free trial active — </span>
+                all premium features unlocked until{" "}
+                <span className="font-semibold">
+                  {new Date(membership.end_date).toLocaleString(undefined, {
+                    month: "short", day: "numeric", year: "numeric",
+                    hour: "2-digit", minute: "2-digit",
+                  })}
+                </span>
+                . Access reverts automatically when the trial ends.
+              </div>
+            </div>
+          )}
+
           <div className="mt-5 flex items-center justify-between rounded-xl border border-border bg-secondary/50 p-4">
             <div>
               <div className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -160,11 +179,16 @@ function Dashboard() {
               </div>
               <div className="mt-1 flex items-center gap-2">
                 <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${statusColor}`}>
-                  {status}
+                  {membership?.plan_type === "trial" && status === "active" ? "Trial" : status}
                 </span>
                 {membership?.end_date && (
                   <span className="text-xs text-muted-foreground">
-                    until {new Date(membership.end_date).toLocaleDateString()}
+                    {membership.plan_type === "trial"
+                      ? `expires ${new Date(membership.end_date).toLocaleString(undefined, {
+                          month: "short", day: "numeric",
+                          hour: "2-digit", minute: "2-digit",
+                        })}`
+                      : `until ${new Date(membership.end_date).toLocaleDateString()}`}
                   </span>
                 )}
               </div>

@@ -51,10 +51,9 @@ export const Route = createFileRoute("/api/public/hooks/membership-expiry-check"
           ),
         );
 
-        // Email delivery: wire up your own transactional email provider here
-        // (e.g. Resend, Postmark, nodemailer + SMTP). The Lovable-managed email
-        // SDK has been removed. Until a replacement is configured, expiring
-        // memberships are logged to the server console instead of emailed.
+        // Email delivery: wire up a transactional email provider here
+        // (e.g. Resend, Postmark, nodemailer + SMTP). Until one is configured,
+        // expiring memberships are logged to the server console instead of emailed.
         let sent = 0;
 
         for (const row of rows as Array<{ user_id: string; end_date: string | null }>) {

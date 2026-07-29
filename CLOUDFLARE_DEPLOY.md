@@ -1,96 +1,121 @@
-# Cloudflare Workers Deployment Guide
+# Cloudflare Pages Deployment Guide
 
-## Prerequisites
-
-```bash
-# Wrangler CLI install karo (ek baar)
-npm install -g wrangler
-
-# Cloudflare account se login karo
-wrangler login
-```
+This project deploys to **Cloudflare Pages** using the Nitro Cloudflare-pages preset.
+The Worker runs with the `nodejs_compat` compatibility flag so `process.env` works
+for server-side code.
 
 ---
 
-## Step 1 — Secrets Set Karo
+## Environment Variables — Two Categories
 
-Har secret ko **alag alag** set karo (values kabhi `wrangler.toml` mein mat likho):
+Cloudflare Pages separates **build-time** and **runtime** variables, and this project
+needs both types. Setting a variable in the wrong place is the most common cause of
+the "Missing Supabase environment variable" error.
+
+### Build-time variables (Cloudflare Pages → Settings → Environment Variables)
+
+These are read by **Vite at build time** and embedded into the client JavaScript bundle.
+Without them the browser bundle has no Supabase URL and throws on load.
+
+| Variable | Value |
+|---|---|
+| `VITE_SUPABASE_URL` | `https://<project-ref>.supabase.co` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` |
+| `VITE_SUPABASE_PROJECT_ID` | `<project-ref>` |
+
+> Set these under **Pages project → Settings → Environment Variables → Build variables**.
+> They must be present when Cloudflare runs `bun run build:cloudflare`.
+
+### Runtime secrets (Cloudflare Pages → Settings → Environment Variables → Runtime secrets)
+
+These are read by the **Cloudflare Worker** at runtime via `process.env`. Never put
+service-role keys or API keys as build vars.
 
 ```bash
-wrangler secret put TWELVEDATA_API_KEY
-wrangler secret put SESSION_SECRET
-wrangler secret put SUPABASE_URL
-wrangler secret put SUPABASE_PUBLISHABLE_KEY
-wrangler secret put SUPABASE_PROJECT_ID
-wrangler secret put VITE_SUPABASE_URL
-wrangler secret put VITE_SUPABASE_PUBLISHABLE_KEY
-wrangler secret put VITE_SUPABASE_PROJECT_ID
+# Use the Cloudflare Pages dashboard or wrangler to set these:
+wrangler pages secret put SUPABASE_URL
+wrangler pages secret put SUPABASE_PUBLISHABLE_KEY
+wrangler pages secret put SUPABASE_PROJECT_ID
+wrangler pages secret put SUPABASE_SERVICE_ROLE_KEY
+wrangler pages secret put TWELVEDATA_API_KEY
+wrangler pages secret put SESSION_SECRET
 ```
 
-> Har command ke baad Wrangler value enter karne ko kahega — wahi `.env` file ki values dalo.
+> `SUPABASE_SERVICE_ROLE_KEY` is only used by admin server functions. If you don't
+> use the admin panel you can skip it; the app degrades gracefully.
+
+---
+
+## Step 1 — Install Wrangler
+
+```bash
+npm install -g wrangler
+wrangler login
+```
 
 ---
 
 ## Step 2 — Build & Deploy
 
 ```bash
-# Cloudflare ke liye build karo + deploy karo (ek command)
+# Build for Cloudflare + deploy in one step
 bun run deploy:cloudflare
 
-# Ya alag alag:
-bun run build:cloudflare   # .output/ folder banta hai
-wrangler deploy            # Cloudflare Workers pe push karta hai
+# Or separately:
+bun run build:cloudflare   # produces .output/
+wrangler pages deploy .output/public --project-name=forex-insights-terminal
 ```
 
 ---
 
 ## Step 3 — Custom Domain (Optional)
 
-Cloudflare Dashboard → Workers & Pages → `mf-smc-trader` → Settings → Domains & Routes mein apna domain add karo.
+Cloudflare Dashboard → Workers & Pages → your project → Settings → Domains & Routes.
 
 ---
 
-## ⚠️ Important Limitation — Live Price Streaming
+## ⚠️ Live Price Streaming on Cloudflare Workers
 
-**Cloudflare Workers stateless hote hain** — har request ek naya isolate mein run hoti hai.
+**Cloudflare Workers are stateless** — each request runs in a fresh isolate.
 
-`src/lib/providers/twelvedata-stream.server.ts` mein `setInterval` + `globalThis` use ho raha hai jo persistent background polling karta hai. Ye pattern Workers mein kaam **nahi karta** kyunki:
+`src/lib/providers/twelvedata-stream.server.ts` uses `setInterval` + `globalThis` for
+persistent background polling. This pattern **does not work** on Workers because:
 
-- Koi background timer nahi chalta requests ke beech
-- `globalThis` state persist nahi hoti across requests
-- SSE connections Worker ki CPU time limit tak limited hain
+- No background timers persist between requests
+- `globalThis` state is reset per isolate
+- SSE connections are limited by the Worker's CPU time budget
 
-### Fix Options:
+### Options
 
-| Option | Effort | Description |
-|--------|--------|-------------|
+| Option | Effort | Notes |
+|---|---|---|
 | **Cloudflare Durable Objects** | Medium | Persistent WebSocket/polling state per symbol |
-| **External polling service** | Low | Alag Bun/Node server pe stream chalaao, Cloudflare sirf frontend serve kare |
+| **External polling service** | Low | Run a separate Bun/Node server; Cloudflare only serves the frontend |
 | **Cloudflare Queues + Workers** | High | Event-driven polling architecture |
 
-### Abhi ke liye:
-
-Agar sirf frontend deploy karna hai aur price stream baad mein fix karna hai — `src/routes/api.price-stream.ts` ko temporarily disable karo ya ek placeholder response return karo.
+Until this is resolved, price streaming won't work in production. The rest of the app
+(auth, dashboard, SMC analysis, charts with cached data) works normally.
 
 ---
 
-## Local Dev (unchanged)
+## Local Dev (Replit)
 
 ```bash
-bun run dev   # Replit ya local pe normal dev server
+bun run dev
 ```
 
-Dev server `process.env` se secrets padhta hai — Cloudflare secrets sirf deployed Worker mein kaam karte hain.
+Dev server reads from `.env` and Replit environment variables — Cloudflare secrets
+only apply inside the deployed Worker.
 
 ---
 
-## Build Output Structure
+## Build Output
 
 ```
 .output/
   server/
-    index.mjs        ← Cloudflare Worker entry point (wrangler.toml ka `main`)
+    index.mjs        ← Cloudflare Worker entry (wrangler.toml `main`)
   public/
-    _app/            ← JS/CSS bundles
-    index.html       ← Shell HTML
+    _app/            ← Vite JS/CSS bundles
+    index.html
 ```

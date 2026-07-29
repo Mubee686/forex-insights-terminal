@@ -1,9 +1,8 @@
 /**
  * Lightweight client-side error reporting helper.
  *
- * Drop-in replacement for the former Lovable-specific bridge. Logs to the
- * console in development; wire up a real error-tracking SDK (Sentry, etc.)
- * here if you need production telemetry.
+ * Logs to the console in development; wire up a real error-tracking SDK
+ * (Sentry, Datadog, etc.) here if you need production telemetry.
  */
 
 type ErrorOptions = {
@@ -25,5 +24,3 @@ export function reportError(
   });
 }
 
-// Back-compat alias so any existing call-sites keep working without a rename.
-export const reportLovableError = reportError;
