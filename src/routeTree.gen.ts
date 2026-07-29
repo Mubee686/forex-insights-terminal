@@ -18,6 +18,8 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TerminalRouteImport } from './routes/terminal'
 import { Route as ApiPriceStreamRouteImport } from './routes/api.price-stream'
+import { Route as ApiFuturesExchangeInfoRouteImport } from './routes/api.futures.exchange-info'
+import { Route as ApiFuturesKlinesRouteImport } from './routes/api.futures.klines'
 import { Route as ApiPublicHooksMembershipExpiryCheckRouteImport } from './routes/api.public.hooks.membership-expiry-check'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +67,16 @@ const ApiPriceStreamRoute = ApiPriceStreamRouteImport.update({
   path: '/api/price-stream',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFuturesExchangeInfoRoute = ApiFuturesExchangeInfoRouteImport.update({
+  id: '/api/futures/exchange-info',
+  path: '/api/futures/exchange-info',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFuturesKlinesRoute = ApiFuturesKlinesRouteImport.update({
+  id: '/api/futures/klines',
+  path: '/api/futures/klines',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksMembershipExpiryCheckRoute =
   ApiPublicHooksMembershipExpiryCheckRouteImport.update({
     id: '/api/public/hooks/membership-expiry-check',
@@ -82,6 +94,8 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terminal': typeof TerminalRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
+  '/api/futures/exchange-info': typeof ApiFuturesExchangeInfoRoute
+  '/api/futures/klines': typeof ApiFuturesKlinesRoute
   '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
 export interface FileRoutesByTo {
@@ -94,6 +108,8 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terminal': typeof TerminalRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
+  '/api/futures/exchange-info': typeof ApiFuturesExchangeInfoRoute
+  '/api/futures/klines': typeof ApiFuturesKlinesRoute
   '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
 export interface FileRoutesById {
@@ -107,6 +123,8 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terminal': typeof TerminalRoute
   '/api/price-stream': typeof ApiPriceStreamRoute
+  '/api/futures/exchange-info': typeof ApiFuturesExchangeInfoRoute
+  '/api/futures/klines': typeof ApiFuturesKlinesRoute
   '/api/public/hooks/membership-expiry-check': typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
 export interface FileRouteTypes {
@@ -121,6 +139,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terminal'
     | '/api/price-stream'
+    | '/api/futures/exchange-info'
+    | '/api/futures/klines'
     | '/api/public/hooks/membership-expiry-check'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -133,6 +153,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terminal'
     | '/api/price-stream'
+    | '/api/futures/exchange-info'
+    | '/api/futures/klines'
     | '/api/public/hooks/membership-expiry-check'
   id:
     | '__root__'
@@ -145,6 +167,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terminal'
     | '/api/price-stream'
+    | '/api/futures/exchange-info'
+    | '/api/futures/klines'
     | '/api/public/hooks/membership-expiry-check'
   fileRoutesById: FileRoutesById
 }
@@ -158,6 +182,8 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TerminalRoute: typeof TerminalRoute
   ApiPriceStreamRoute: typeof ApiPriceStreamRoute
+  ApiFuturesExchangeInfoRoute: typeof ApiFuturesExchangeInfoRoute
+  ApiFuturesKlinesRoute: typeof ApiFuturesKlinesRoute
   ApiPublicHooksMembershipExpiryCheckRoute: typeof ApiPublicHooksMembershipExpiryCheckRoute
 }
 
@@ -226,6 +252,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPriceStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/futures/exchange-info': {
+      id: '/api/futures/exchange-info'
+      path: '/api/futures/exchange-info'
+      fullPath: '/api/futures/exchange-info'
+      preLoaderRoute: typeof ApiFuturesExchangeInfoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/futures/klines': {
+      id: '/api/futures/klines'
+      path: '/api/futures/klines'
+      fullPath: '/api/futures/klines'
+      preLoaderRoute: typeof ApiFuturesKlinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/membership-expiry-check': {
       id: '/api/public/hooks/membership-expiry-check'
       path: '/api/public/hooks/membership-expiry-check'
@@ -246,6 +286,8 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TerminalRoute: TerminalRoute,
   ApiPriceStreamRoute: ApiPriceStreamRoute,
+  ApiFuturesExchangeInfoRoute: ApiFuturesExchangeInfoRoute,
+  ApiFuturesKlinesRoute: ApiFuturesKlinesRoute,
   ApiPublicHooksMembershipExpiryCheckRoute:
     ApiPublicHooksMembershipExpiryCheckRoute,
 }

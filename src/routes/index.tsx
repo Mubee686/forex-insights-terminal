@@ -121,6 +121,155 @@ function NavAuth() {
   );
 }
 
+/* ─── Membership Plans ──────────────────────────────────────────────────── */
+function PlanCard({
+  badge, title, price, period, features, cta, highlight, delay,
+}: {
+  badge?: string;
+  title: string;
+  price: string;
+  period: string;
+  features: string[];
+  cta: string;
+  highlight?: boolean;
+  delay: string;
+}) {
+  const { ref, visible } = useReveal();
+  return (
+    <div
+      ref={ref}
+      style={{
+        transitionDelay: delay,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(20px)",
+        transition: "opacity 0.4s ease, transform 0.4s ease",
+      }}
+      className={`relative flex flex-col rounded-2xl border p-7 ${
+        highlight
+          ? "border-[#2563EB] bg-[#0D1F3C] shadow-[0_0_40px_rgba(37,99,235,0.15)]"
+          : "border-[#1E3A6E] bg-[#0D1F3C]"
+      }`}
+    >
+      {badge && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-[#2563EB] bg-[#1A3560] px-3 py-0.5 text-[11px] font-bold uppercase tracking-widest text-[#60A5FA]">
+          {badge}
+        </div>
+      )}
+      <div className="mb-5">
+        <h3 className="mb-1 text-lg font-bold text-white">{title}</h3>
+        <div className="flex items-end gap-1">
+          <span className="text-3xl font-extrabold text-white">{price}</span>
+          <span className="mb-1 text-sm text-[#7BA8CC]">{period}</span>
+        </div>
+      </div>
+      <ul className="mb-7 flex flex-col gap-2.5">
+        {features.map((f) => (
+          <li key={f} className="flex items-start gap-2 text-sm text-[#7BA8CC]">
+            <svg className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            {f}
+          </li>
+        ))}
+      </ul>
+      <Link
+        to="/register"
+        className={`mt-auto block w-full rounded-xl py-3 text-center text-sm font-bold transition-colors ${
+          highlight
+            ? "bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
+            : "border border-[#1E3A6E] text-white hover:border-[#2563EB] hover:bg-[#1A3560]"
+        }`}
+      >
+        {cta}
+      </Link>
+    </div>
+  );
+}
+
+function MembershipPlans() {
+  const { ref: headRef, visible: headVisible } = useReveal();
+  return (
+    <section className="relative px-6 py-20" style={{ background: "#0A1428" }}>
+      {/* subtle divider */}
+      <div className="mx-auto mb-14 max-w-5xl">
+        <div
+          ref={headRef}
+          style={{
+            opacity: headVisible ? 1 : 0,
+            transform: headVisible ? "translateY(0)" : "translateY(20px)",
+            transition: "opacity 0.4s ease, transform 0.4s ease",
+          }}
+          className="text-center"
+        >
+          <div className="mx-auto mb-4 w-fit rounded-full border border-[#1E3A6E] bg-[#0D1F3C] px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#60A5FA]">
+            Membership Plans
+          </div>
+          <h2 className="mb-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+            Choose your access level
+          </h2>
+          <p className="mx-auto max-w-xl text-base text-[#7BA8CC]">
+            Start with a free trial or unlock full access. All plans include every SMC tool, live data, and both Forex and Futures terminals.
+          </p>
+        </div>
+      </div>
+
+      <div className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-3">
+        <PlanCard
+          title="Free Trial"
+          price="Free"
+          period="/ 1 day"
+          features={[
+            "Full terminal access for 24 hours",
+            "All SMC tools (OB, BOS, FVG, IDM…)",
+            "Live Forex & Futures charts",
+            "No credit card required",
+          ]}
+          cta="Start free trial"
+          delay="0ms"
+        />
+        <PlanCard
+          badge="Most Popular"
+          title="Monthly"
+          price="Contact"
+          period="/ month"
+          features={[
+            "Unlimited terminal access",
+            "All SMC tools & timeframes",
+            "Live Forex & Futures charts",
+            "529+ Binance Futures pairs",
+            "Priority support",
+          ]}
+          cta="Get monthly access"
+          highlight
+          delay="60ms"
+        />
+        <PlanCard
+          title="Annual"
+          price="Contact"
+          period="/ year"
+          features={[
+            "Everything in Monthly",
+            "Best value — save vs monthly",
+            "529+ Binance Futures pairs",
+            "Early access to new features",
+            "Priority support",
+          ]}
+          cta="Get annual access"
+          delay="120ms"
+        />
+      </div>
+
+      <p className="mt-8 text-center text-sm text-[#7BA8CC]">
+        After registering, contact{" "}
+        <a href="mailto:mfsmctrader786@gmail.com" className="text-[#60A5FA] hover:underline">
+          mfsmctrader786@gmail.com
+        </a>{" "}
+        to activate your plan.
+      </p>
+    </section>
+  );
+}
+
 /* ─── Feature card ─────────────────────────────────────────────────────── */
 function FeatureCard({
   icon, title, desc, delay,
@@ -289,6 +438,11 @@ function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ══════════════════════════════════════════════════════
+          MEMBERSHIP PLANS SECTION
+      ════════════════════════════════════════════════════════ */}
+      <MembershipPlans />
 
       {/* ══════════════════════════════════════════════════════
           AUTH SECTION

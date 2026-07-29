@@ -100,9 +100,10 @@ function formatLivePrice(v: number): string {
 }
 
 async function fetchKlines(symbol: string, interval: string): Promise<Candle[]> {
-  const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=500`;
+  // Use the server-side proxy to avoid browser geo-restrictions on fapi.binance.com
+  const url = `/api/futures/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=500`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Binance API error ${res.status} — ${url}`);
+  if (!res.ok) throw new Error(`Failed to load chart data (${res.status})`);
   const rows = (await res.json()) as unknown[][];
   return rows.map((r) => ({
     time:  Math.floor(Number(r[0]) / 1000),
@@ -478,7 +479,7 @@ export function FuturesChart() {
 
   // ── fetch all USDT perpetual pairs from Binance exchangeInfo ──────────────
   useEffect(() => {
-    fetch("https://fapi.binance.com/fapi/v1/exchangeInfo")
+    fetch("/api/futures/exchange-info")
       .then((r) => r.json())
       .then((data: {
         symbols: { symbol: string; status: string; contractType: string; quoteAsset: string }[];
