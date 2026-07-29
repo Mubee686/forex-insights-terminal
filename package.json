@@ -10,8 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "build:cloudflare": "NITRO_PRESET=cloudflare-pages vite build",
-    "deploy:cloudflare": "npm run build:cloudflare && wrangler pages deploy .output/public"
+    "build:cloudflare": "vite build",
+    "deploy:cloudflare": "bun run build:cloudflare && wrangler deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

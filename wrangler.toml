@@ -6,6 +6,15 @@ compatibility_flags = ["nodejs_compat"]
 [assets]
 directory = "dist/client"
 binding = "ASSETS"
+
+# Plain (non-secret) runtime vars — visible in the Cloudflare dashboard.
+# Sensitive values (SESSION_SECRET, TWELVEDATA_API_KEY, SUPABASE_SERVICE_ROLE_KEY)
+# must be set as Wrangler secrets, NOT here:
+#   wrangler secret put SESSION_SECRET
+#   wrangler secret put TWELVEDATA_API_KEY
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY   (admin routes only)
 [vars]
 SUPABASE_PROJECT_ID = "cgirdlkuarpzrpaybrkb"
-SESSION_SECRET = "z@FJY6AMMzD-6s!T;cA0[>2-<od'x~z_1)_(1L0P4Y$bP8L@Fd#/tk'KL;Yu&dF3}"
+SUPABASE_URL = "https://cgirdlkuarpzrpaybrkb.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TdHq5P1Gn_fxZyApaGBJww_SpehDX8i"
+ADMIN_DASHBOARD_PASSWORD_HASH = "d14955d4a32fcb9d2763067b5ea76339e33d22e00ceab8db0460b108bbcbc02d"

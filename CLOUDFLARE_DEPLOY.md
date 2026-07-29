@@ -1,80 +1,110 @@
-# Cloudflare Pages Deployment Guide
+# Cloudflare Workers Deployment Guide
 
-This project deploys to **Cloudflare Pages** using the Nitro Cloudflare-pages preset.
-The Worker runs with the `nodejs_compat` compatibility flag so `process.env` works
-for server-side code.
+This project deploys to **Cloudflare Workers with Assets** — a single Worker that serves
+both the SSR server (`dist/server/server.js`) and the static client bundle (`dist/client/`).
+This is configured in `wrangler.toml`.
+
+> **Do NOT use Cloudflare Pages** for this project. The `wrangler.toml` configuration
+> targets Cloudflare Workers (not Pages), and the two products handle routing and Workers
+> differently. Using `wrangler pages deploy` will break SSR.
+
+---
+
+## Automatic Deployment (Recommended)
+
+Every push to the `main` branch is automatically built and deployed via the GitHub Actions
+workflow at `.github/workflows/deploy.yml`. You do not need to run any command locally.
+
+### One-time GitHub setup
+
+Add these **GitHub repository secrets and variables** (Settings → Secrets and Variables → Actions):
+
+| Kind | Name | Value / Where to find |
+|---|---|---|
+| Secret | `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token (use "Edit Cloudflare Workers" template) |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar on Workers & Pages overview |
+| Variable | `VITE_SUPABASE_URL` | `https://cgirdlkuarpzrpaybrkb.supabase.co` |
+| Variable | `VITE_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_TdHq5P1Gn_fxZyApaGBJww_SpehDX8i` |
+| Variable | `VITE_SUPABASE_PROJECT_ID` | `cgirdlkuarpzrpaybrkb` |
+
+### One-time Cloudflare Worker secrets
+
+These are **runtime secrets** — they must be set directly on the Worker, not in GitHub:
+
+```bash
+# Run these once from your machine (wrangler must be logged in):
+wrangler secret put SESSION_SECRET
+wrangler secret put TWELVEDATA_API_KEY
+wrangler secret put SUPABASE_SERVICE_ROLE_KEY   # admin routes only — skip if unused
+```
+
+> After running each command, paste the secret value when prompted.
+> These are never committed to Git and never appear in `wrangler.toml`.
+
+---
+
+## Manual Deployment (Local)
+
+```bash
+# Install deps
+bun install
+
+# Build + deploy in one step
+bun run deploy:cloudflare
+
+# Or separately:
+bun run build               # produces dist/server/server.js and dist/client/
+wrangler deploy             # uploads Worker + assets to Cloudflare
+```
 
 ---
 
 ## Environment Variables — Two Categories
 
-Cloudflare Pages separates **build-time** and **runtime** variables, and this project
-needs both types. Setting a variable in the wrong place is the most common cause of
-the "Missing Supabase environment variable" error.
+### Build-time vars (baked into the client JS bundle by Vite)
 
-### Build-time variables (Cloudflare Pages → Settings → Environment Variables)
+These must be available when `bun run build` runs. Locally they come from `.env`.
+In CI they come from GitHub Actions variables (set above).
 
-These are read by **Vite at build time** and embedded into the client JavaScript bundle.
-Without them the browser bundle has no Supabase URL and throws on load.
-
-| Variable | Value |
+| Variable | Description |
 |---|---|
-| `VITE_SUPABASE_URL` | `https://<project-ref>.supabase.co` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` |
-| `VITE_SUPABASE_PROJECT_ID` | `<project-ref>` |
+| `VITE_SUPABASE_URL` | Supabase project URL — embedded in the browser bundle |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon/publishable key |
+| `VITE_SUPABASE_PROJECT_ID` | Supabase project ID |
 
-> Set these under **Pages project → Settings → Environment Variables → Build variables**.
-> They must be present when Cloudflare runs `bun run build:cloudflare`.
+### Runtime vars/secrets (read by the Cloudflare Worker via `process.env`)
 
-### Runtime secrets (Cloudflare Pages → Settings → Environment Variables → Runtime secrets)
+Plain (non-secret) values live in `wrangler.toml` under `[vars]` and are visible in the
+Cloudflare dashboard. Sensitive values must be Worker secrets.
 
-These are read by the **Cloudflare Worker** at runtime via `process.env`. Never put
-service-role keys or API keys as build vars.
-
-```bash
-# Use the Cloudflare Pages dashboard or wrangler to set these:
-wrangler pages secret put SUPABASE_URL
-wrangler pages secret put SUPABASE_PUBLISHABLE_KEY
-wrangler pages secret put SUPABASE_PROJECT_ID
-wrangler pages secret put SUPABASE_SERVICE_ROLE_KEY
-wrangler pages secret put TWELVEDATA_API_KEY
-wrangler pages secret put SESSION_SECRET
-```
-
-> `SUPABASE_SERVICE_ROLE_KEY` is only used by admin server functions. If you don't
-> use the admin panel you can skip it; the app degrades gracefully.
+| Source | Name | Secret? |
+|---|---|---|
+| `wrangler.toml [vars]` | `SUPABASE_PROJECT_ID` | No |
+| `wrangler.toml [vars]` | `SUPABASE_URL` | No |
+| `wrangler.toml [vars]` | `SUPABASE_PUBLISHABLE_KEY` | No |
+| `wrangler.toml [vars]` | `ADMIN_DASHBOARD_PASSWORD_HASH` | No |
+| Wrangler secret | `SESSION_SECRET` | **Yes** |
+| Wrangler secret | `TWELVEDATA_API_KEY` | **Yes** |
+| Wrangler secret | `SUPABASE_SERVICE_ROLE_KEY` | **Yes** |
 
 ---
 
-## Step 1 — Install Wrangler
+## Build Output
 
-```bash
-npm install -g wrangler
-wrangler login
 ```
-
----
-
-## Step 2 — Build & Deploy
-
-```bash
-# Build for Cloudflare + deploy in one step
-bun run deploy:cloudflare
-
-# Or separately:
-bun run build:cloudflare   # produces .output/
-wrangler pages deploy .output/public --project-name=forex-insights-terminal
+dist/
+  server/
+    server.js        ← Cloudflare Worker entry (wrangler.toml `main`)
+    assets/          ← server-side code chunks
+  client/
+    assets/          ← Vite JS/CSS bundles
+    favicon.ico
+    ...
 ```
 
 ---
 
-## Step 3 — Custom Domain (Optional)
-
-Cloudflare Dashboard → Workers & Pages → your project → Settings → Domains & Routes.
-
----
-
-## ⚠️ Live Price Streaming on Cloudflare Workers
+## Live Price Streaming on Cloudflare Workers
 
 **Cloudflare Workers are stateless** — each request runs in a fresh isolate.
 
@@ -93,8 +123,8 @@ persistent background polling. This pattern **does not work** on Workers because
 | **External polling service** | Low | Run a separate Bun/Node server; Cloudflare only serves the frontend |
 | **Cloudflare Queues + Workers** | High | Event-driven polling architecture |
 
-Until this is resolved, price streaming won't work in production. The rest of the app
-(auth, dashboard, SMC analysis, charts with cached data) works normally.
+Until this is resolved, live price streaming won't work in production. Auth, dashboard,
+SMC analysis, and charts with cached/fetched OHLC data work normally.
 
 ---
 
@@ -106,16 +136,3 @@ bun run dev
 
 Dev server reads from `.env` and Replit environment variables — Cloudflare secrets
 only apply inside the deployed Worker.
-
----
-
-## Build Output
-
-```
-.output/
-  server/
-    index.mjs        ← Cloudflare Worker entry (wrangler.toml `main`)
-  public/
-    _app/            ← Vite JS/CSS bundles
-    index.html
-```
